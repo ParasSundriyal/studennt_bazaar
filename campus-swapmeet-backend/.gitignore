@@ -1,0 +1,48 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun.lockb
+
+# Build output
+dist/
+build/
+
+# Vite
+.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+
+# Coverage
+coverage/
+
+# Misc
+*.local
+*.sublime-workspace
+
+# React
+campus-swapmeet/node_modules/
+campus-swapmeet/dist/
+campus-swapmeet/.env
+campus-swapmeet/.env.*
+
+# Backend
+campus-swapmeet-backend/node_modules/
+campus-swapmeet-backend/.env
+campus-swapmeet-backend/.env.*
+campus-swapmeet-backend/coverage/ 
