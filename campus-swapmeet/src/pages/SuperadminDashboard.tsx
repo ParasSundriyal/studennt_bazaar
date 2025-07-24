@@ -24,6 +24,10 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+// Helper to get API URL
+const API_URL = import.meta.env.VITE_API_URL;
+const api = (path: string) => `${API_URL}${path}`;
+
 const SuperadminDashboard = () => {
   const { user, logout } = useAuth();
   const { toast } = useToast();
@@ -49,12 +53,12 @@ const SuperadminDashboard = () => {
       const token = localStorage.getItem('token');
       try {
         const [statsRes, usersRes, reportsRes, activityRes, sellersRes, productsRes] = await Promise.all([
-          fetch('http://localhost:5000/api/users/stats', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('http://localhost:5000/api/users/', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('http://localhost:5000/api/reports/', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('http://localhost:5000/api/admin/recent-activity', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('http://localhost:5000/api/seller/pending', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('http://localhost:5000/api/products/all', { headers: { Authorization: `Bearer ${token}` } })
+          fetch(api('/users/stats'), { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(api('/users/'), { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(api('/reports/'), { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(api('/admin/recent-activity'), { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(api('/seller/pending'), { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(api('/products/all'), { headers: { Authorization: `Bearer ${token}` } })
         ]);
         const statsData = await statsRes.json();
         const usersData = await usersRes.json();
@@ -91,7 +95,7 @@ const SuperadminDashboard = () => {
   const handleApproveSeller = async (userId: string) => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`http://localhost:5000/api/seller/approve/${userId}`, {
+      const res = await fetch(api(`/seller/approve/${userId}`), {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -110,7 +114,7 @@ const SuperadminDashboard = () => {
   const handleRejectSeller = async (userId: string) => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`http://localhost:5000/api/seller/reject/${userId}`, {
+      const res = await fetch(api(`/seller/reject/${userId}`), {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -131,7 +135,7 @@ const SuperadminDashboard = () => {
     setDeleteLoading(productId);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/products/${productId}`, {
+      const res = await fetch(api(`/products/${productId}`), {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });

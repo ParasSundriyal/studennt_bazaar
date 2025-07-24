@@ -37,6 +37,10 @@ interface SignupData {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper to get API URL
+const API_URL = import.meta.env.VITE_API_URL;
+const api = (path: string) => `${API_URL}${path}`;
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,7 +51,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = localStorage.getItem('token');
     setLoadingUser(true);
     if (token && !user) {
-      fetch('http://localhost:5000/api/auth/me', {
+      fetch(api('/auth/me'), {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => res.json())
@@ -83,7 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (collegeId: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(api('/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ collegeId, password })
@@ -116,7 +120,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signup = async (data: SignupData): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/auth/signup', {
+      const response = await fetch(api('/auth/signup'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)

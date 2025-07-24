@@ -14,6 +14,10 @@ import L from 'leaflet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
 
+// Helper to get API URL
+const API_URL = import.meta.env.VITE_API_URL;
+const api = (path: string) => `${API_URL}${path}`;
+
 const StudentDashboard = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("selling");
@@ -80,7 +84,7 @@ const StudentDashboard = () => {
       setError(null);
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:5000/api/products/my', {
+        const res = await fetch(api('/products/my'), {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -101,7 +105,7 @@ const StudentDashboard = () => {
     setApplyLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/seller/apply', {
+      const res = await fetch(api('/seller/apply'), {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -137,7 +141,7 @@ const StudentDashboard = () => {
       if (user?.location) {
         formData.append('location', JSON.stringify(user.location));
       }
-      const res = await fetch('http://localhost:5000/api/products/', {
+      const res = await fetch(api('/products/'), {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
@@ -178,7 +182,7 @@ const StudentDashboard = () => {
     setEditLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/products/${editModal.product._id}`, {
+      const res = await fetch(api(`${api('/products')}/${editModal.product._id}`), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -205,7 +209,7 @@ const StudentDashboard = () => {
     setDeleteLoading(productId);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/products/${productId}`, {
+      const res = await fetch(api(`${api('/products')}/${productId}`), {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -249,7 +253,7 @@ const StudentDashboard = () => {
     setBuyLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/products/${showBuyModal.product._id}/buy-request`, {
+      const res = await fetch(api(`${api('/products')}/${showBuyModal.product._id}/buy-request`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -280,7 +284,7 @@ const StudentDashboard = () => {
     setBuyReqLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/products/buy-requests/seller', {
+      const res = await fetch(api('/products/buy-requests/seller'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -293,7 +297,7 @@ const StudentDashboard = () => {
     setBuyReqActionLoading(id + action);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/products/buy-requests/${id}/${action}`, {
+      const res = await fetch(api(`${api('/products/buy-requests')}/${id}/${action}`), {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -317,7 +321,7 @@ const StudentDashboard = () => {
     setMyBuyReqLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/products/buy-requests/buyer', {
+      const res = await fetch(api('/products/buy-requests/buyer'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -336,7 +340,7 @@ const StudentDashboard = () => {
       setError(null);
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:5000/api/products/my', {
+        const res = await fetch(api('/products/my'), {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -355,7 +359,7 @@ const StudentDashboard = () => {
     // Fetch marketplace items (all except current user's)
     const fetchMarketplaceItems = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/products/');
+        const res = await fetch(api('/products/'));
         const data = await res.json();
         if (data.success) {
           setMarketplaceItems(data.products.filter((p: any) => p.status === 'active' && p.seller && p.seller._id !== user?.id));
@@ -373,7 +377,7 @@ const StudentDashboard = () => {
       setStatsLoading(true);
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:5000/api/users/dashboard-stats', {
+        const res = await fetch(api('/users/dashboard-stats'), {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -427,7 +431,7 @@ const StudentDashboard = () => {
         setShowLocationModal(false);
         // Save to backend
         const token = localStorage.getItem('token');
-        await fetch('http://localhost:5000/api/users/me/location', {
+        await fetch(api('/users/me/location'), {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -818,7 +822,7 @@ const StudentDashboard = () => {
                 // Re-fetch marketplace items
                 const fetchMarketplaceItems = async () => {
                   try {
-                    const res = await fetch('http://localhost:5000/api/products/');
+                    const res = await fetch(api('/products/'));
                     const data = await res.json();
                     if (data.success) {
                       setMarketplaceItems(data.products.filter((p: any) => p.status === 'active' && p.seller && p.seller._id !== user?.id));
@@ -1002,7 +1006,7 @@ const StudentDashboard = () => {
               e.preventDefault();
               setProfileLoading(true);
               const token = localStorage.getItem('token');
-              const res = await fetch('http://localhost:5000/api/users/me', {
+              const res = await fetch(api('/users/me'), {
                 method: 'PUT',
                 headers: {
                   'Authorization': `Bearer ${token}`,

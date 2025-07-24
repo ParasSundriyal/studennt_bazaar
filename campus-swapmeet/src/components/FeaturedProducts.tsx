@@ -6,6 +6,10 @@ import { Button } from './ui/button';
 import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+// Helper to get API URL
+const API_URL = import.meta.env.VITE_API_URL;
+const api = (path: string) => `${API_URL}${path}`;
+
 const FeaturedProducts = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,7 +22,7 @@ const FeaturedProducts = () => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        const res = await fetch('http://localhost:5000/api/products/all');
+        const res = await fetch(api('/products/all'));
         const data = await res.json();
         if (data.success) {
           // Show the latest 8 products (sorted by createdAt desc)
