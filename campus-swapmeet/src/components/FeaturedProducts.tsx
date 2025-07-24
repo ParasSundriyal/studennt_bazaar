@@ -1,82 +1,43 @@
 import ProductCard from "./ProductCard";
-
-// Mock data for featured products
-const featuredProducts = [
-  {
-    id: 1,
-    title: "MacBook Air M1 - Excellent Condition",
-    price: 65000,
-    originalPrice: 80000,
-    image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=400&fit=crop&crop=center",
-    location: "Delhi University",
-    seller: "Rahul S.",
-    rating: 4.8,
-    category: "Electronics",
-    isLiked: false
-  },
-  {
-    id: 2,
-    title: "Complete Engineering Mathematics Books Set",
-    price: 2500,
-    originalPrice: 4000,
-    image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&h=400&fit=crop&crop=center",
-    location: "IIT Delhi",
-    seller: "Priya M.",
-    rating: 4.9,
-    category: "Books",
-    isLiked: true
-  },
-  {
-    id: 3,
-    title: "iPhone 13 Pro - Like New",
-    price: 45000,
-    originalPrice: 55000,
-    image: "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&h=400&fit=crop&crop=center",
-    location: "JNU",
-    seller: "Arjun K.",
-    rating: 4.7,
-    category: "Electronics",
-    isLiked: false
-  },
-  {
-    id: 4,
-    title: "Gaming Chair - Ergonomic Design",
-    price: 8500,
-    originalPrice: 12000,
-    image: "https://images.unsplash.com/photo-1541558869434-2840d308329a?w=400&h=400&fit=crop&crop=center",
-    location: "BITS Pilani",
-    seller: "Neha R.",
-    rating: 4.6,
-    category: "Home & Living",
-    isLiked: false
-  },
-  {
-    id: 5,
-    title: "Canon DSLR Camera with Lens",
-    price: 25000,
-    originalPrice: 35000,
-    image: "https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?w=400&h=400&fit=crop&crop=center",
-    location: "Jamia Millia",
-    seller: "Karan T.",
-    rating: 4.8,
-    category: "Electronics",
-    isLiked: true
-  },
-  {
-    id: 6,
-    title: "Study Table with Drawers",
-    price: 3500,
-    originalPrice: 5000,
-    image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=400&fit=crop&crop=center",
-    location: "DU North Campus",
-    seller: "Shreya P.",
-    rating: 4.5,
-    category: "Home & Living",
-    isLiked: false
-  }
-];
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from './ui/button';
+import { X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const FeaturedProducts = () => {
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [showBuyModal, setShowBuyModal] = useState<{ open: boolean, product: any | null }>({ open: false, product: null });
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch('http://localhost:5000/api/products/all');
+        const data = await res.json();
+        if (data.success) {
+          // Show the latest 8 products (sorted by createdAt desc)
+          setProducts(data.products.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8));
+        }
+      } catch {}
+      setLoading(false);
+    };
+    fetchProducts();
+  }, []);
+
+  const handleBuyClick = (product: any) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setShowBuyModal({ open: true, product });
+  };
+
   return (
     <section className="py-16 bg-muted/30">
       <div className="container mx-auto px-4">
@@ -87,22 +48,33 @@ const FeaturedProducts = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featuredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              title={product.title}
-              price={product.price}
-              originalPrice={product.originalPrice}
-              image={product.image}
-              location={product.location}
-              seller={product.seller}
-              rating={product.rating}
-              category={product.category}
-              isLiked={product.isLiked}
-            />
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-center py-12">Loading products...</div>
+        ) : products.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">No products found. Be the first to list an item!</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {products.map((product) => (
+              <ProductCard
+                key={product._id}
+                title={product.title}
+                price={product.price}
+                originalPrice={product.originalPrice}
+                image={product.images && product.images[0]}
+                location={product.location || product.collegeName || ''}
+                seller={product.seller?.name || ''}
+                rating={product.rating || null}
+                category={product.category}
+                isLiked={false}
+                footer={
+                  <Button variant="hero" size="sm" className="mt-2 w-full" onClick={() => handleBuyClick(product)}>
+                    Send Buy Request
+                  </Button>
+                }
+              />
+            ))}
+          </div>
+        )}
 
         <div className="text-center mt-12">
           <button className="bg-gradient-primary text-primary-foreground px-8 py-3 rounded-lg font-medium hover:shadow-medium hover:scale-105 transform transition-all duration-300">
@@ -110,6 +82,17 @@ const FeaturedProducts = () => {
           </button>
         </div>
       </div>
+      {showBuyModal.open && user && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-2">
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-8 w-full max-w-md relative flex flex-col">
+            <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-800" onClick={() => setShowBuyModal({ open: false, product: null })}>
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-xl font-bold mb-4">Send Buy Request</h3>
+            <form /* ...buy request form logic as in dashboard... */ />
+          </div>
+        </div>
+      )}
     </section>
   );
 };

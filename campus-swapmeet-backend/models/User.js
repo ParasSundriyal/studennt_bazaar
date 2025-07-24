@@ -43,6 +43,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['pending', 'approved', 'rejected'],
     default: 'pending'
+  },
+  location: {
+    lat: { type: Number },
+    lng: { type: Number },
+    address: { type: String }
   }
 }, {
   timestamps: true

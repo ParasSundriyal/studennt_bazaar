@@ -1,13 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingBag, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { ShoppingBag, Eye, EyeOff, Loader2, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import React from 'react'; // Added missing import for React.createElement
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 const colleges = [
   'Delhi University',
@@ -34,12 +39,87 @@ const Signup = () => {
     phoneNumber: '', // changed from phone
     year: '',
     course: '',
-    collegeEmail: ''
+    collegeEmail: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const { signup, isLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [location, setLocation] = useState<{ lat: number; lng: number; address: string }>({ lat: 28.6139, lng: 77.209, address: '' });
+  const [locationTouched, setLocationTouched] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [modalMapCenter, setModalMapCenter] = useState<[number, number]>([location.lat, location.lng]);
+
+  // Helper to reverse geocode lat/lng to address (using Nominatim API)
+  const fetchAddress = async (lat: number, lng: number) => {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+      const data = await res.json();
+      return data.display_name || '';
+    } catch {
+      return '';
+    }
+  };
+
+  // Custom marker icon (fixes missing marker icon issue)
+  const markerIcon = new L.Icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-shadow.png',
+    shadowSize: [41, 41],
+  });
+
+  // Map click handler for modal
+  function LocationSelector() {
+    useMapEvents({
+      click: async (e) => {
+        setLocationTouched(true);
+        const address = await fetchAddress(e.latlng.lat, e.latlng.lng);
+        setLocation({ lat: e.latlng.lat, lng: e.latlng.lng, address });
+        setShowLocationModal(false);
+      },
+    });
+    return null;
+  }
+
+  // Map auto-center helper
+  function MapAutoCenter({ center }: { center: [number, number] }) {
+    const map = useMap();
+    useEffect(() => {
+      map.setView(center);
+    }, [center, map]);
+    return null;
+  }
+
+  // Auto-detect location when modal opens
+  useEffect(() => {
+    if (showLocationModal && !locationTouched) {
+      setIsDetectingLocation(true);
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const { latitude, longitude } = pos.coords;
+            const address = await fetchAddress(latitude, longitude);
+            setLocation({ lat: latitude, lng: longitude, address });
+            setModalMapCenter([latitude, longitude]);
+            setIsDetectingLocation(false);
+          },
+          () => {
+            setIsDetectingLocation(false);
+            setModalMapCenter([28.6139, 77.209]); // fallback to default
+          }
+        );
+      } else {
+        setIsDetectingLocation(false);
+        setModalMapCenter([28.6139, 77.209]);
+      }
+    } else if (showLocationModal && locationTouched) {
+      setModalMapCenter([location.lat, location.lng]);
+    }
+  }, [showLocationModal]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -72,6 +152,14 @@ const Signup = () => {
       });
       return;
     }
+    if (!locationTouched) {
+      toast({
+        title: 'Error',
+        description: 'Please select your location on the map',
+        variant: 'destructive',
+      });
+      return;
+    }
     const success = await signup({
       collegeId: formData.collegeId,
       password: formData.password,
@@ -80,7 +168,8 @@ const Signup = () => {
       phoneNumber: formData.phoneNumber, // changed
       year: formData.year,
       course: formData.course,
-      collegeEmail: formData.collegeEmail
+      collegeEmail: formData.collegeEmail,
+      location,
     });
     if (success) {
       toast({
@@ -198,6 +287,20 @@ const Signup = () => {
                 className="bg-background"
               />
             </div>
+            {/* Location Picker (now as modal trigger) */}
+            <div className="space-y-2">
+              <Label>Location *</Label>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => setShowLocationModal(true)}
+              >
+                {locationTouched
+                  ? (location.address ? location.address : `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`)
+                  : 'Click to set your location'}
+              </Button>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="password">Password *</Label>
@@ -257,6 +360,44 @@ const Signup = () => {
           </div>
         </CardContent>
       </Card>
+      {/* Location Modal */}
+      <Dialog open={showLocationModal} onOpenChange={setShowLocationModal}>
+        <DialogContent className="max-w-2xl p-0">
+          <DialogHeader className="flex flex-row items-center justify-between px-6 pt-6">
+            <DialogTitle>Select Your Location</DialogTitle>
+            <Button variant="ghost" size="icon" onClick={() => setShowLocationModal(false)}>
+              <X className="w-5 h-5" />
+            </Button>
+          </DialogHeader>
+          <div className="h-80 sm:h-96 w-full rounded-lg overflow-hidden border border-gray-300 mt-2 relative flex">
+            {isDetectingLocation && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
+                <Loader2 className="w-6 h-6 mr-2 animate-spin" /> Detecting your location...
+              </div>
+            )}
+            <MapContainer
+              center={modalMapCenter}
+              zoom={13}
+              style={{ height: '100%', width: '100%' }}
+              scrollWheelZoom={true}
+              className="flex-1 min-w-0"
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <MapAutoCenter center={modalMapCenter} />
+              <LocationSelector />
+              <Marker position={[location.lat, location.lng]} icon={markerIcon} />
+            </MapContainer>
+          </div>
+          <DialogFooter className="px-6 pb-4 pt-2">
+            <div className="text-xs text-muted-foreground">
+              Click on the map to set your location. Your address will appear in the form.
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

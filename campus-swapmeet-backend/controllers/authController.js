@@ -8,7 +8,7 @@ function generateToken(user) {
 
 exports.signup = async (req, res) => {
   try {
-    const { collegeId, name, collegeEmail, collegeName, phoneNumber, password } = req.body;
+    const { collegeId, name, collegeEmail, collegeName, phoneNumber, password, location } = req.body;
     if (!collegeId || !name || !collegeEmail || !collegeName || !phoneNumber || !password) {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
@@ -16,9 +16,9 @@ exports.signup = async (req, res) => {
     if (existing) {
       return res.status(400).json({ success: false, message: 'College ID already registered' });
     }
-    const user = await User.create({ collegeId, name, collegeEmail, collegeName, phoneNumber, password });
+    const user = await User.create({ collegeId, name, collegeEmail, collegeName, phoneNumber, password, location });
     const token = generateToken(user);
-    res.status(201).json({ success: true, token, user: { id: user._id, collegeId: user.collegeId, name: user.name, role: user.role, sellerStatus: user.sellerStatus } });
+    res.status(201).json({ success: true, token, user: { id: user._id, collegeId: user.collegeId, name: user.name, role: user.role, sellerStatus: user.sellerStatus, location: user.location } });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
@@ -39,7 +39,7 @@ exports.login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid credentials' });
     }
     const token = generateToken(user);
-    res.json({ success: true, token, user: { id: user._id, collegeId: user.collegeId, name: user.name, role: user.role, sellerStatus: user.sellerStatus } });
+    res.json({ success: true, token, user: { id: user._id, collegeId: user.collegeId, name: user.name, role: user.role, sellerStatus: user.sellerStatus, location: user.location } });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
@@ -59,7 +59,8 @@ exports.getMe = async (req, res) => {
         sellerStatus: user.sellerStatus,
         collegeEmail: user.collegeEmail,
         collegeName: user.collegeName,
-        phoneNumber: user.phoneNumber
+        phoneNumber: user.phoneNumber,
+        location: user.location
       }
     });
   } catch (err) {

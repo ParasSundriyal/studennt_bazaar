@@ -12,6 +12,7 @@ interface ProductCardProps {
   rating: number;
   category: string;
   isLiked?: boolean;
+  footer?: React.ReactNode;
 }
 
 const ProductCard = ({ 
@@ -23,7 +24,8 @@ const ProductCard = ({
   seller, 
   rating, 
   category,
-  isLiked = false 
+  isLiked = false,
+  footer
 }: ProductCardProps) => {
   return (
     <div className="group bg-card rounded-xl overflow-hidden shadow-soft hover:shadow-medium transition-all duration-300 hover:scale-105 transform border border-border">
@@ -77,6 +79,7 @@ const ProductCard = ({
           </div>
         </div>
       </div>
+      {footer && <div className="p-4 pt-0">{footer}</div>}
     </div>
   );
 };

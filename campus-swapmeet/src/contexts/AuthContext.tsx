@@ -11,6 +11,7 @@ export interface User {
   year?: string;
   course?: string;
   sellerStatus?: string;
+  location?: { lat: number; lng: number; address: string };
 }
 
 interface AuthContextType {
@@ -31,6 +32,7 @@ interface SignupData {
   year?: string;
   course?: string;
   collegeEmail: string;
+  location?: { lat: number; lng: number; address: string };
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -59,6 +61,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               role: data.user.role,
               phone: data.user.phoneNumber || '',
               sellerStatus: data.user.sellerStatus || '',
+              location: data.user.location || undefined,
               // Add other fields as needed
             });
           } else {
@@ -95,6 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           role: result.user.role,
           phone: result.user.phoneNumber || '',
           sellerStatus: result.user.sellerStatus || '',
+          location: result.user.location || undefined,
           // Add other fields as needed
         });
         localStorage.setItem('token', result.token);
@@ -127,6 +131,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           role: result.user.role,
           phone: result.user.phoneNumber || '',
           sellerStatus: result.user.sellerStatus || '',
+          location: result.user.location || undefined,
           // Add other fields as needed
         });
         localStorage.setItem('token', result.token);

@@ -63,13 +63,10 @@ router.get('/', async (req, res) => {
   res.json({ success: true, products });
 });
 
-// Get all products (superadmin only)
-router.get('/all', requireAuth, async (req, res) => {
-  if (req.user.role !== 'superadmin') {
-    return res.status(403).json({ success: false, message: 'Only superadmin can access this endpoint' });
-  }
+// Get all active products (public)
+router.get('/all', async (req, res) => {
   try {
-    const products = await Product.find().populate('seller', 'name collegeId');
+    const products = await Product.find({ status: 'active' }).populate('seller', 'name collegeId');
     res.json({ success: true, products });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });

@@ -9,6 +9,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import Webcam from 'react-webcam';
 import React from 'react';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Loader2 } from 'lucide-react';
 
 const StudentDashboard = () => {
   const { user, logout } = useAuth();
@@ -129,6 +133,10 @@ const StudentDashboard = () => {
       formData.append('price', addForm.price);
       formData.append('category', addForm.category);
       addForm.images.forEach((img) => formData.append('images', img));
+      // Add location to product if user has location
+      if (user?.location) {
+        formData.append('location', JSON.stringify(user.location));
+      }
       const res = await fetch('http://localhost:5000/api/products/', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
@@ -383,6 +391,115 @@ const StudentDashboard = () => {
     fetchStats();
   }, [user]);
 
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [location, setLocation] = useState<{ lat: number; lng: number; address: string } | null>(user?.location || null);
+  const [locationTouched, setLocationTouched] = useState(false);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [modalMapCenter, setModalMapCenter] = useState<[number, number]>(user?.location ? [user.location.lat, user.location.lng] : [28.6139, 77.209]);
+
+  // Helper to reverse geocode lat/lng to address (using Nominatim API)
+  // const fetchAddress = async (lat: number, lng: number) => {
+  //   try {
+  //     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+  //     const data = await res.json();
+  //     return data.display_name || '';
+  //   } catch {
+  //     return '';
+  //   }
+  // };
+
+  // Custom marker icon
+  const markerIcon = new L.Icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-shadow.png',
+    shadowSize: [41, 41],
+  });
+
+  // Map click handler for modal
+  function LocationSelector() {
+    useMapEvents({
+      click: async (e) => {
+        setLocationTouched(true);
+        setLocation({ lat: e.latlng.lat, lng: e.latlng.lng, address: '' }); // address will be filled by backend
+        setShowLocationModal(false);
+        // Save to backend
+        const token = localStorage.getItem('token');
+        await fetch('http://localhost:5000/api/users/me/location', {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ lat: e.latlng.lat, lng: e.latlng.lng }),
+        });
+        // Optionally update user context here if needed
+      },
+    });
+    return null;
+  }
+
+  // Map auto-center helper
+  function MapAutoCenter({ center }: { center: [number, number] }) {
+    const map = useMap();
+    React.useEffect(() => {
+      map.setView(center);
+    }, [center, map]);
+    return null;
+  }
+
+  // Auto-detect location when modal opens
+  React.useEffect(() => {
+    if (showLocationModal && !locationTouched && !location) {
+      setIsDetectingLocation(true);
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { latitude, longitude } = pos.coords;
+            setLocation({ lat: latitude, lng: longitude, address: '' }); // address will be filled by backend
+            setModalMapCenter([latitude, longitude]);
+            setIsDetectingLocation(false);
+          },
+          () => {
+            setIsDetectingLocation(false);
+            setModalMapCenter([28.6139, 77.209]);
+          }
+        );
+      } else {
+        setIsDetectingLocation(false);
+        setModalMapCenter([28.6139, 77.209]);
+      }
+    } else if (showLocationModal && location) {
+      setModalMapCenter([location.lat, location.lng]);
+    }
+  }, [showLocationModal]);
+
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: user?.name || '',
+    phone: user?.phone || '',
+  });
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  // Add distance filter state
+  const [marketplaceDistance, setMarketplaceDistance] = useState<number>(0); // 0 = all
+  const distanceOptions = [0, 1, 5, 10, 20, 50, 100]; // 0 = All, then km options
+
+  // Haversine formula
+  function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Profile Header */}
@@ -398,6 +515,12 @@ const StudentDashboard = () => {
             <div className="flex-1 text-center md:text-left">
               <h1 className="text-2xl sm:text-3xl font-bold">{user?.name}</h1>
               <p className="text-primary-foreground/80 text-base sm:text-lg">{user?.college}</p>
+              {location && location.address && (
+                <div className="flex items-center gap-2 text-sm text-primary-foreground/80 mt-1">
+                  <MapPin className="w-4 h-4" />
+                  <span>{location.address}</span>
+                </div>
+              )}
               <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start space-y-2 sm:space-y-0 sm:space-x-4 mt-2 text-sm">
                 <span>{user?.course} • {user?.year}</span>
                 <span className="hidden sm:inline">•</span>
@@ -419,7 +542,7 @@ const StudentDashboard = () => {
               )}
             </div>
             <div className="flex flex-row md:flex-col gap-2 justify-center md:justify-start">
-            <Button variant="secondary" size="sm">
+            <Button variant="secondary" size="sm" onClick={() => setShowEditProfileModal(true)}>
               <Edit className="w-4 h-4 mr-2" />
               Edit Profile
             </Button>
@@ -461,7 +584,9 @@ const StudentDashboard = () => {
       {/* Dashboard Content */}
       <div className="container mx-auto px-2 sm:px-4 py-6 sm:py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-2 sm:grid-cols-5 w-full mb-4">
+          <TabsList
+            className="flex flex-nowrap gap-2 overflow-x-auto w-full mb-4 bg-white/60 rounded-lg p-1 sm:justify-center sm:gap-4 text-sm sm:text-base scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-300"
+          >
             <TabsTrigger value="selling" className="flex items-center space-x-2">
               <Package className="w-4 h-4" />
               <span>My Listings</span>
@@ -480,7 +605,7 @@ const StudentDashboard = () => {
               <span>Purchase History</span>
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="selling" className="space-y-6">
+          <TabsContent value="selling" className="space-y-4 sm:space-y-6">
             {user?.role === 'student' && sellerStatus !== 'approved' ? (
               <div className="text-center text-muted-foreground">
                 {sellerStatus === 'pending'
@@ -489,9 +614,9 @@ const StudentDashboard = () => {
               </div>
             ) : (
               <>
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-              <h2 className="text-2xl font-bold">My Listings</h2>
-              <Button variant="hero" onClick={() => setShowAddModal(true)}>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mt-2 sm:mt-4">
+              <h2 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-0">My Listings</h2>
+              <Button variant="hero" className="w-full sm:w-auto" onClick={() => setShowAddModal(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add New Item
               </Button>
@@ -671,6 +796,11 @@ const StudentDashboard = () => {
                             {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                           </select>
                         </div>
+                        {!location && (
+                          <Button variant="outline" className="mt-4 w-full" onClick={() => setShowLocationModal(true)}>
+                            <MapPin className="w-4 h-4 mr-2" /> Set Location
+                          </Button>
+                        )}
                         <Button type="submit" variant="hero" className="w-full" disabled={editLoading}>
                           {editLoading ? 'Saving...' : 'Save Changes'}
                         </Button>
@@ -682,7 +812,7 @@ const StudentDashboard = () => {
             )}
           </TabsContent>
           <TabsContent value="marketplace" className="space-y-6">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <h2 className="text-2xl font-bold">Marketplace</h2>
               <Button variant="outline" size="sm" onClick={() => {
                 // Re-fetch marketplace items
@@ -697,11 +827,39 @@ const StudentDashboard = () => {
                 };
                 fetchMarketplaceItems();
               }}>Refresh</Button>
+              {/* Distance filter dropdown, only if user has location */}
+              {user?.location && (
+                <div className="flex items-center gap-2">
+                  <label htmlFor="distance-filter" className="text-sm">Within</label>
+                  <select
+                    id="distance-filter"
+                    className="border rounded px-2 py-1 text-sm"
+                    value={marketplaceDistance}
+                    onChange={e => setMarketplaceDistance(Number(e.target.value))}
+                  >
+                    <option value={0}>All</option>
+                    {distanceOptions.filter(d => d !== 0).map(d => (
+                      <option key={d} value={d}>{d} km</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {marketplaceItems.length === 0 && <div className="text-muted-foreground">No products found.</div>}
               {marketplaceItems
                 .filter((item: any) => item.seller && item.seller._id !== user?.id)
+                .filter((item: any) => {
+                  if (!user?.location || !item.location || !item.location.lat || !item.location.lng) return false;
+                  if (!marketplaceDistance || marketplaceDistance === 0) return true;
+                  const dist = getDistanceFromLatLonInKm(
+                    user.location.lat,
+                    user.location.lng,
+                    item.location.lat,
+                    item.location.lng
+                  );
+                  return dist <= marketplaceDistance;
+                })
                 .map((item: any) => (
                   <Card key={item._id} className="overflow-hidden hover:shadow-medium transition-all duration-300">
                     <CardContent className="p-4 sm:p-6">
@@ -719,6 +877,12 @@ const StudentDashboard = () => {
                                 <span className="text-xl font-bold text-primary">₹{item.price?.toLocaleString()}</span>
                               </div>
                               <div className="text-xs text-muted-foreground">by {item.seller?.name || 'Unknown'}</div>
+                              {/* Show distance if user and product have location */}
+                              {user?.location && item.location && item.location.lat && item.location.lng && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {getDistanceFromLatLonInKm(user.location.lat, user.location.lng, item.location.lat, item.location.lng).toFixed(2)} km away
+                                </div>
+                              )}
                             </div>
                           </div>
                           <span>Listed on {new Date(item.createdAt).toLocaleDateString()}</span>
@@ -826,6 +990,95 @@ const StudentDashboard = () => {
           </div>
         </div>
       )}
+      {/* Edit Profile Modal */}
+      {showEditProfileModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-2">
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-8 w-full max-w-md relative">
+            <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-800" onClick={() => setShowEditProfileModal(false)}>
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-xl font-bold mb-4">Edit Profile</h3>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setProfileLoading(true);
+              const token = localStorage.getItem('token');
+              const res = await fetch('http://localhost:5000/api/users/me', {
+                method: 'PUT',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name: profileForm.name, phone: profileForm.phone }),
+              });
+              const data = await res.json();
+              setProfileLoading(false);
+              if (data.success) {
+                toast({ title: 'Profile Updated', description: 'Your profile has been updated.', variant: 'default' });
+                setShowEditProfileModal(false);
+                // Optionally update user context here
+              } else {
+                toast({ title: 'Error', description: data.message || 'Failed to update profile', variant: 'destructive' });
+              }
+            }} className="space-y-4">
+              <div>
+                <label className="block mb-1 font-medium">Name</label>
+                <input type="text" className="w-full border rounded px-3 py-2" value={profileForm.name} onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))} required />
+              </div>
+              <div>
+                <label className="block mb-1 font-medium">Phone</label>
+                <input type="text" className="w-full border rounded px-3 py-2" value={profileForm.phone} onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))} />
+              </div>
+              {/* Only allow setting location if not set */}
+              {!location && (
+                <Button variant="outline" className="mt-2 w-full" onClick={(e) => { e.preventDefault(); setShowLocationModal(true); }}>
+                  <MapPin className="w-4 h-4 mr-2" /> Set Location
+                </Button>
+              )}
+              <Button type="submit" variant="hero" className="w-full" disabled={profileLoading}>
+                {profileLoading ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Map Modal for setting location */}
+      <Dialog open={showLocationModal} onOpenChange={setShowLocationModal}>
+        <DialogContent className="max-w-2xl p-0">
+          <DialogHeader className="flex flex-row items-center justify-between px-6 pt-6">
+            <DialogTitle>Select Your Location</DialogTitle>
+            <Button variant="ghost" size="icon" onClick={() => setShowLocationModal(false)}>
+              <X className="w-5 h-5" />
+            </Button>
+          </DialogHeader>
+          <div className="h-80 sm:h-96 w-full rounded-lg overflow-hidden border border-gray-300 mt-2 relative flex">
+            {isDetectingLocation && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
+                <Loader2 className="w-6 h-6 mr-2 animate-spin" /> Detecting your location...
+              </div>
+            )}
+            <MapContainer
+              center={modalMapCenter}
+              zoom={13}
+              style={{ height: '100%', width: '100%' }}
+              scrollWheelZoom={true}
+              className="flex-1 min-w-0"
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <MapAutoCenter center={modalMapCenter} />
+              <LocationSelector />
+              {location && <Marker position={[location.lat, location.lng]} icon={markerIcon} />}
+            </MapContainer>
+          </div>
+          <DialogFooter className="px-6 pb-4 pt-2">
+            <div className="text-xs text-muted-foreground">
+              Click on the map to set your location. Your address will appear in the profile.
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
