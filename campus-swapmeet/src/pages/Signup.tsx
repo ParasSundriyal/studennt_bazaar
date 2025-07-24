@@ -13,6 +13,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import React from 'react'; // Added missing import for React.createElement
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import signupBg from '@/assets/signup-bg.png';
 
 const colleges = [
   'Delhi University',
@@ -189,7 +190,7 @@ const Signup = () => {
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
       {/* Background image with overlay */}
-      <img src="/src/assets/signup-bg.png" alt="background" className="absolute inset-0 w-full h-full object-contain object-center opacity-70 z-0" />
+      <img src={signupBg} alt="background" className="absolute inset-0 w-full h-full object-contain object-center opacity-70 z-0" />
       <div className="absolute inset-0 bg-black/40 z-0" />
       <Card className="w-full max-w-lg shadow-medium border border-white/30 z-10 bg-white/0 backdrop-blur-lg">
         <CardHeader className="text-center space-y-4">

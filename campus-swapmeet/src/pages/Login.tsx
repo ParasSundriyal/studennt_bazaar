@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ShoppingBag, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import loginBg from '@/assets/login-bg.png';
 
 const Login = () => {
   const [collegeId, setCollegeId] = useState('');
@@ -45,7 +46,7 @@ const Login = () => {
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
       {/* Background image with overlay */}
-      <img src="/src/assets/login-bg.png" alt="background" className="absolute inset-0 w-full h-full object-contain object-center opacity-70 z-0" />
+      <img src={loginBg} alt="background" className="absolute inset-0 w-full h-full object-contain object-center opacity-70 z-0" />
       <div className="absolute inset-0 bg-black/40 z-0" />
       <Card className="w-full max-w-md shadow-medium border border-white/30 z-10 bg-white/0 backdrop-blur-lg">
         <CardHeader className="text-center space-y-4">
