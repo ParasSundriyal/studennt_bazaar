@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 
 const app = express();
-const allowedOrigins = ["https://studennt-bazaar-t535.vercel.app", 'http://localhost:8080'];
+const allowedOrigins = [process.env.FRONTEND_URL, 'http://localhost:8080'];
 app.use(cors({
   origin: function(origin, callback) {
     console.log('CORS check:', origin, allowedOrigins); // Debug log
