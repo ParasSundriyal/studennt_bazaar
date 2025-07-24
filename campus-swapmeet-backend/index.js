@@ -24,7 +24,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   exposedHeaders: ['Content-Range', 'X-Total-Count']
 }));
-app.options('*', cors()); // Allow preflight across all routes
+ // Allow preflight across all routes
 
 app.use(express.json());
 
