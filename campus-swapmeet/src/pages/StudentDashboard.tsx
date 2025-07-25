@@ -253,7 +253,7 @@ const StudentDashboard = () => {
     setBuyLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(api(`/products/${showBuyModal.product._id}/buy-request`), {
+      const res = await fetch(api(`${api('/products')}/${showBuyModal.product._id}/${'buy-request'}`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
