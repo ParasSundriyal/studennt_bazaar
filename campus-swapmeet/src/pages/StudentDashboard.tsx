@@ -137,9 +137,9 @@ const StudentDashboard = () => {
       formData.append('price', addForm.price);
       formData.append('category', addForm.category);
       addForm.images.forEach((img) => formData.append('images', img));
-      // Add location to product if user has location
+      // Always add user location if available
       if (user?.location) {
-        formData.append('location', JSON.stringify(user.location));
+        formData.set('location', JSON.stringify(user.location));
       }
       const res = await fetch(api('/products/'), {
         method: 'POST',
@@ -253,7 +253,7 @@ const StudentDashboard = () => {
     setBuyLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(api(`${api('/products')}/${showBuyModal.product._id}/buy-request`), {
+      const res = await fetch(api(`/products/${showBuyModal.product._id}/buy-request`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -850,11 +850,21 @@ const StudentDashboard = () => {
               )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {marketplaceItems.length === 0 && <div className="text-muted-foreground">No products found.</div>}
+              {marketplaceItems.length === 0 && (
+                <div className="text-muted-foreground">
+                  No products found.
+                  {(!user?.location || marketplaceItems.every((item: any) => !item.location)) && (
+                    <div className="text-xs text-warning mt-2">Some products or your profile may be missing location data. Set your location in your profile for better results.</div>
+                  )}
+                </div>
+              )}
               {marketplaceItems
                 .filter((item: any) => item.seller && item.seller._id !== user?.id)
                 .filter((item: any) => {
-                  if (!user?.location || !item.location || !item.location.lat || !item.location.lng) return false;
+                  // Show all products if distance is 'All'
+                  if (!user?.location || !item.location || !item.location.lat || !item.location.lng) {
+                    return marketplaceDistance === 0;
+                  }
                   if (!marketplaceDistance || marketplaceDistance === 0) return true;
                   const dist = getDistanceFromLatLonInKm(
                     user.location.lat,

@@ -24,7 +24,7 @@ const Footer = () => {
           <div>
             <h3 className="font-semibold mb-4">Quick Links</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-primary transition-colors">Browse Products</a></li>
+              <li><a href="/" className="hover:text-primary transition-colors">Browse Products</a></li>
               <li><a href="#" className="hover:text-primary transition-colors">Sell Item</a></li>
               <li><a href="#" className="hover:text-primary transition-colors">Categories</a></li>
               <li><a href="#" className="hover:text-primary transition-colors">How it Works</a></li>
@@ -37,7 +37,7 @@ const Footer = () => {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="#" className="hover:text-primary transition-colors">Help Center</a></li>
               <li><a href="#" className="hover:text-primary transition-colors">Safety Tips</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Contact Us</a></li>
+              <li><a href="mailto:paras.starkmarkup@gmail.com" className="hover:text-primary transition-colors">Contact Us</a></li>
               <li><a href="#" className="hover:text-primary transition-colors">Report Issue</a></li>
             </ul>
           </div>
@@ -54,7 +54,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; 2024 Student Bazar. All rights reserved.</p>
+          <p>&copy; 2025 Student Bazar. All rights reserved.</p>
         </div>
       </div>
     </footer>

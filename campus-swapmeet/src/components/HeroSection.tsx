@@ -38,20 +38,7 @@ const HeroSection = () => {
             </div>
 
             {/* Stats */}
-            <div className="flex gap-8 pt-4">
-              <div>
-                <div className="text-2xl font-bold text-primary">5,000+</div>
-                <div className="text-sm text-muted-foreground">Active Students</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-primary">50+</div>
-                <div className="text-sm text-muted-foreground">Colleges</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-primary">10,000+</div>
-                <div className="text-sm text-muted-foreground">Items Sold</div>
-              </div>
-            </div>
+            
           </div>
 
           {/* Hero Image */}
