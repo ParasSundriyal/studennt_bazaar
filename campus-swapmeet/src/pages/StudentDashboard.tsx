@@ -354,9 +354,6 @@ const StudentDashboard = () => {
       }
       setLoading(false);
     };
-    fetchSellingItems();
-
-    // Fetch marketplace items (all except current user's)
     const fetchMarketplaceItems = async () => {
       try {
         const res = await fetch(api('/products/'));
@@ -366,7 +363,14 @@ const StudentDashboard = () => {
         }
       } catch {}
     };
+    fetchSellingItems();
     fetchMarketplaceItems();
+    // Polling interval
+    const interval = setInterval(() => {
+      fetchSellingItems();
+      fetchMarketplaceItems();
+    }, 15000); // 15 seconds
+    return () => clearInterval(interval);
   }, [user]);
 
   const [dashboardStats, setDashboardStats] = useState({ itemsSold: '-', itemsBought: '-', totalEarned: '-', profileViews: '-' });

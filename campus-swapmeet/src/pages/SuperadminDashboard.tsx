@@ -82,6 +82,11 @@ const SuperadminDashboard = () => {
       setLoading(false);
     };
     fetchAll();
+    // Polling interval
+    const interval = setInterval(() => {
+      fetchAll();
+    }, 15000); // 15 seconds
+    return () => clearInterval(interval);
   }, []);
 
   const handleApprove = (id: number) => {
