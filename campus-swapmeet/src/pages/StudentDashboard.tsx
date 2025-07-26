@@ -942,7 +942,12 @@ const StudentDashboard = () => {
                     <CardContent className="p-4 sm:p-6">
                       <div className="flex flex-col gap-2">
                         <div className="font-semibold">Product: {req.product?.title}</div>
-                        <div className="text-xs text-muted-foreground">by {req.buyer?.name} ({req.buyer?.collegeId})</div>
+                        <div className="text-xs text-muted-foreground">
+                          by {req.buyerName || req.buyer?.name} 
+                          {req.buyer?.collegeId && ` (${req.buyer.collegeId})`}
+                          {!req.buyer && ' (Guest User)'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Phone: {req.buyerPhone}</div>
                         <div className="text-sm">Message: {req.message}</div>
                         <div className="text-xs">Status: <span className={req.status === 'approved' ? 'text-green-600' : req.status === 'rejected' ? 'text-red-600' : 'text-yellow-600'}>{req.status}</span></div>
                         {req.status === 'pending' && (

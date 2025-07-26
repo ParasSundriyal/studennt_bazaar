@@ -1,5 +1,6 @@
 import { Book, Smartphone, Gamepad2, Shirt, Home, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
 const categories = [
   { name: "Books", icon: Book, color: "bg-blue-500" },
@@ -10,7 +11,12 @@ const categories = [
   { name: "More", icon: MoreHorizontal, color: "bg-gray-500" },
 ];
 
-const CategorySection = () => {
+interface CategorySectionProps {
+  selectedCategory?: string;
+  onCategorySelect?: (category: string) => void;
+}
+
+const CategorySection = ({ selectedCategory, onCategorySelect }: CategorySectionProps) => {
   return (
     <section className="py-16 bg-background">
       <div className="container mx-auto px-4">
@@ -24,11 +30,15 @@ const CategorySection = () => {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {categories.map((category) => {
             const IconComponent = category.icon;
+            const isSelected = selectedCategory === category.name;
             return (
               <Button
                 key={category.name}
-                variant="outline"
-                className="h-24 flex-col space-y-2 hover:shadow-soft hover:scale-105 transform transition-all duration-300"
+                variant={isSelected ? "default" : "outline"}
+                className={`h-24 flex-col space-y-2 hover:shadow-soft hover:scale-105 transform transition-all duration-300 ${
+                  isSelected ? 'ring-2 ring-primary' : ''
+                }`}
+                onClick={() => onCategorySelect?.(category.name)}
               >
                 <div className={`w-8 h-8 rounded-lg ${category.color} flex items-center justify-center`}>
                   <IconComponent className="w-5 h-5 text-white" />

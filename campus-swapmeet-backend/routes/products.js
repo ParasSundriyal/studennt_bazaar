@@ -177,14 +177,54 @@ router.post('/:id/buy-request', requireAuth, async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
     if (String(product.seller) === req.user.id) return res.status(400).json({ success: false, message: 'Cannot send buy request to your own product' });
-    const { message } = req.body;
+    const { message, buyerName, buyerPhone } = req.body;
+    
+    if (!buyerName || !buyerPhone) {
+      return res.status(400).json({ success: false, message: 'Buyer name and phone are required' });
+    }
+    
     const buyRequest = await BuyRequest.create({
       product: product._id,
       buyer: req.user.id,
       seller: product.seller,
       message,
+      buyerName,
+      buyerPhone,
       status: 'pending'
     });
+    res.status(201).json({ success: true, buyRequest });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
+
+// Create a guest buy request (no authentication required)
+router.post('/:id/guest-buy-request', async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+    
+    const { message, buyerName, buyerPhone } = req.body;
+    
+    if (!buyerName || !buyerPhone || !message) {
+      return res.status(400).json({ success: false, message: 'Buyer name, phone, and message are required' });
+    }
+    
+    // Validate phone number format (basic validation)
+    if (!/^[0-9]{10}$/.test(buyerPhone.replace(/\D/g, ''))) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit phone number' });
+    }
+    
+    const buyRequest = await BuyRequest.create({
+      product: product._id,
+      buyer: null, // No user ID for guest requests
+      seller: product.seller,
+      message,
+      buyerName,
+      buyerPhone,
+      status: 'pending'
+    });
+    
     res.status(201).json({ success: true, buyRequest });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
