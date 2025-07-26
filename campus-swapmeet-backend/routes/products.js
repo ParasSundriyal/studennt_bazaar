@@ -171,34 +171,7 @@ router.post('/buy-requests/:requestId/reject', requireAuth, async (req, res) => 
   }
 });
 
-// Create a buy request
-router.post('/:id/buy-request', requireAuth, async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
-    if (String(product.seller) === req.user.id) return res.status(400).json({ success: false, message: 'Cannot send buy request to your own product' });
-    const { message, buyerName, buyerPhone } = req.body;
-    
-    if (!buyerName || !buyerPhone) {
-      return res.status(400).json({ success: false, message: 'Buyer name and phone are required' });
-    }
-    
-    const buyRequest = await BuyRequest.create({
-      product: product._id,
-      buyer: req.user.id,
-      seller: product.seller,
-      message,
-      buyerName,
-      buyerPhone,
-      status: 'pending'
-    });
-    res.status(201).json({ success: true, buyRequest });
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Server error', error: err.message });
-  }
-});
-
-// Create a guest buy request (no authentication required)
+// Create a guest buy request (no authentication required) - MUST come before /:id/buy-request
 router.post('/:id/guest-buy-request', async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -225,6 +198,33 @@ router.post('/:id/guest-buy-request', async (req, res) => {
       status: 'pending'
     });
     
+    res.status(201).json({ success: true, buyRequest });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
+
+// Create a buy request (authenticated users)
+router.post('/:id/buy-request', requireAuth, async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+    if (String(product.seller) === req.user.id) return res.status(400).json({ success: false, message: 'Cannot send buy request to your own product' });
+    const { message, buyerName, buyerPhone } = req.body;
+    
+    if (!buyerName || !buyerPhone) {
+      return res.status(400).json({ success: false, message: 'Buyer name and phone are required' });
+    }
+    
+    const buyRequest = await BuyRequest.create({
+      product: product._id,
+      buyer: req.user.id,
+      seller: product.seller,
+      message,
+      buyerName,
+      buyerPhone,
+      status: 'pending'
+    });
     res.status(201).json({ success: true, buyRequest });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
