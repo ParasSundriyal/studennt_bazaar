@@ -25,6 +25,12 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// List all users (admin only)
+router.get('/', requireAuth, requireAdmin, async (req, res) => {
+  const users = await User.find().select('-password');
+  res.json({ success: true, users });
+});
+
 // Get admin/superadmin dashboard stats
 router.get('/stats', requireAuth, async (req, res) => {
   if (req.user.role !== 'superadmin') {
@@ -70,12 +76,6 @@ router.get('/:id', requireAuth, async (req, res) => {
   const user = await User.findById(req.params.id).select('-password');
   if (!user) return res.status(404).json({ success: false, message: 'User not found' });
   res.json({ success: true, user });
-});
-
-// List all users (admin only)
-router.get('/', requireAuth, requireAdmin, async (req, res) => {
-  const users = await User.find().select('-password');
-  res.json({ success: true, users });
 });
 
 // Update current user's profile (name, phone, etc.)

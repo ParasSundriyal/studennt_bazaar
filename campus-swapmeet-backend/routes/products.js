@@ -113,26 +113,6 @@ router.delete('/:id', requireAuth, requireSeller, async (req, res) => {
   res.json({ success: true, message: 'Product deleted' });
 });
 
-// Create a buy request
-router.post('/:id/buy-request', requireAuth, async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
-    if (String(product.seller) === req.user.id) return res.status(400).json({ success: false, message: 'Cannot send buy request to your own product' });
-    const { message } = req.body;
-    const buyRequest = await BuyRequest.create({
-      product: product._id,
-      buyer: req.user.id,
-      seller: product.seller,
-      message,
-      status: 'pending'
-    });
-    res.status(201).json({ success: true, buyRequest });
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Server error', error: err.message });
-  }
-});
-
 // Get all buy requests for the logged-in seller
 router.get('/buy-requests/seller', requireAuth, async (req, res) => {
   try {
@@ -186,6 +166,26 @@ router.post('/buy-requests/:requestId/reject', requireAuth, async (req, res) => 
     request.status = 'rejected';
     await request.save();
     res.json({ success: true, request });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
+
+// Create a buy request
+router.post('/:id/buy-request', requireAuth, async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+    if (String(product.seller) === req.user.id) return res.status(400).json({ success: false, message: 'Cannot send buy request to your own product' });
+    const { message } = req.body;
+    const buyRequest = await BuyRequest.create({
+      product: product._id,
+      buyer: req.user.id,
+      seller: product.seller,
+      message,
+      status: 'pending'
+    });
+    res.status(201).json({ success: true, buyRequest });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }

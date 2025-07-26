@@ -48,14 +48,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Persist user on refresh
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    setLoadingUser(true);
-    if (token && !user) {
-      fetch(api('/auth/me'), {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-        .then(res => res.json())
-        .then(data => {
+    const restoreUser = async () => {
+      const token = localStorage.getItem('token');
+      setLoadingUser(true);
+      
+      if (token) {
+        try {
+          const response = await fetch(api('/auth/me'), {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          
+          const data = await response.json();
           if (data.success) {
             setUser({
               id: data.user.id,
@@ -69,20 +76,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               // Add other fields as needed
             });
           } else {
+            // Token is invalid
             setUser(null);
             localStorage.removeItem('token');
           }
-          setLoadingUser(false);
-        })
-        .catch(() => {
+        } catch (error) {
+          console.error('Error restoring user session:', error);
           setUser(null);
           localStorage.removeItem('token');
-          setLoadingUser(false);
-        });
-    } else {
+        }
+      }
       setLoadingUser(false);
-    }
-  }, []);
+    };
+
+    restoreUser();
+  }, []); // Empty dependency array is correct here since we only want this to run once on mount
 
   const login = async (collegeId: string, password: string): Promise<boolean> => {
     setIsLoading(true);

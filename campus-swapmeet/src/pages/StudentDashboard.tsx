@@ -19,7 +19,7 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
 const api = (path: string) => `${API_URL}${path}`;
 
 const StudentDashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, loadingUser } = useAuth();
   const [activeTab, setActiveTab] = useState("selling");
   const [sellingItems, setSellingItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -508,138 +508,151 @@ const StudentDashboard = () => {
     return R * c;
   }
 
-  return (
+    return (
     <div className="min-h-screen bg-background">
-      {/* Profile Header */}
-      <div className="bg-gradient-primary text-primary-foreground">
-        <div className="container mx-auto px-2 sm:px-4 py-6 sm:py-8">
-          <div className="flex flex-col md:flex-row md:items-center md:space-x-6 space-y-4 md:space-y-0">
-            <Avatar className="w-20 h-20 border-4 border-primary-foreground/20 mx-auto md:mx-0" >
-              <AvatarImage src={user?.avatar} alt={user?.name} />
-              <AvatarFallback className="text-2xl font-bold bg-primary-foreground text-primary">
-                {user?.name?.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 text-center md:text-left">
-              <h1 className="text-2xl sm:text-3xl font-bold">{user?.name}</h1>
-              <p className="text-primary-foreground/80 text-base sm:text-lg">{user?.college}</p>
-              {location && location.address && (
-                <div className="flex items-center gap-2 text-sm text-primary-foreground/80 mt-1">
-                  <MapPin className="w-4 h-4" />
-                  <span>{location.address}</span>
-                </div>
-              )}
-              <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start space-y-2 sm:space-y-0 sm:space-x-4 mt-2 text-sm">
-                <span>{user?.course} • {user?.year}</span>
-                <span className="hidden sm:inline">•</span>
-                <div className="flex items-center space-x-1">
-                  <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                  <span>4.8 Rating</span>
-                </div>
-              </div>
-              {user?.role === 'student' && sellerStatus !== 'approved' && (
-                <Button
-                  variant="hero"
-                  size="sm"
-                  onClick={handleRegisterSeller}
-                  disabled={applyLoading || sellerStatus === 'pending'}
-                  className="mt-4"
-                >
-                  {sellerStatus === 'pending' ? 'Application Pending' : applyLoading ? 'Applying...' : 'Register as Seller'}
-                </Button>
-              )}
-            </div>
-            <div className="flex flex-row md:flex-col gap-2 justify-center md:justify-start">
-            <Button variant="secondary" size="sm" onClick={() => setShowEditProfileModal(true)}>
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Profile
-            </Button>
-              <Button variant="destructive" size="sm" onClick={logout}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
-            </div>
-          </div>
-          {/* Stats - TODO: Replace with real data */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
-          <Card className="bg-primary-foreground/10 border-primary-foreground/20">
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold">{statsLoading ? '-' : dashboardStats.itemsSold}</div>
-              <div className="text-sm text-primary-foreground/80">Items Sold</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-primary-foreground/10 border-primary-foreground/20">
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold">{statsLoading ? '-' : dashboardStats.itemsBought}</div>
-              <div className="text-sm text-primary-foreground/80">Items Bought</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-primary-foreground/10 border-primary-foreground/20">
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold">{statsLoading ? '-' : (dashboardStats.totalEarned !== '-' ? `₹${dashboardStats.totalEarned}` : '-')}</div>
-              <div className="text-sm text-primary-foreground/80">Total Earned</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-primary-foreground/10 border-primary-foreground/20">
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold">{statsLoading ? '-' : dashboardStats.profileViews}</div>
-              <div className="text-sm text-primary-foreground/80">Profile Views</div>
-            </CardContent>
-          </Card>
+      {/* Loading screen while restoring user session */}
+      {loadingUser && (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading...</p>
           </div>
         </div>
-      </div>
-      {/* Dashboard Content */}
-      <div className="container mx-auto px-2 sm:px-4 py-6 sm:py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList
-            className="flex flex-nowrap gap-2 overflow-x-auto w-full mb-4 bg-white/60 rounded-lg p-1 sm:justify-center sm:gap-4 text-sm sm:text-base scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-300"
-          >
-            <TabsTrigger value="selling" className="flex items-center space-x-2">
-              <Package className="w-4 h-4" />
-              <span>My Listings</span>
-            </TabsTrigger>
-            <TabsTrigger value="marketplace" className="flex items-center space-x-2">
-              <ShoppingCart className="w-4 h-4" />
-              <span>Marketplace</span>
-            </TabsTrigger>
-            <TabsTrigger value="buyRequests" className="flex items-center space-x-2">
-              <span>Buy Requests</span>
-            </TabsTrigger>
-            <TabsTrigger value="myBuyRequests" className="flex items-center space-x-2">
-              <span>My Buy Requests</span>
-            </TabsTrigger>
-            <TabsTrigger value="buying" className="flex items-center space-x-2">
-              <span>Purchase History</span>
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="selling" className="space-y-4 sm:space-y-6">
-            {user?.role === 'student' && sellerStatus !== 'approved' ? (
-              <div className="text-center text-muted-foreground">
-                {sellerStatus === 'pending'
-                  ? 'Your seller application is pending approval. You will be able to list products once approved.'
-                  : 'You must be an approved seller to list products. Please apply using the button above.'}
+      )}
+      
+      {/* Main dashboard content */}
+      {!loadingUser && (
+        <>
+          {/* Profile Header */}
+          <div className="bg-gradient-primary text-primary-foreground">
+            <div className="container mx-auto px-2 sm:px-4 py-6 sm:py-8">
+              <div className="flex flex-col md:flex-row md:items-center md:space-x-6 space-y-4 md:space-y-0">
+                <Avatar className="w-20 h-20 border-4 border-primary-foreground/20 mx-auto md:mx-0" >
+                  <AvatarImage src={user?.avatar} alt={user?.name} />
+                  <AvatarFallback className="text-2xl font-bold bg-primary-foreground text-primary">
+                    {user?.name?.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 text-center md:text-left">
+                  <h1 className="text-2xl sm:text-3xl font-bold">{user?.name}</h1>
+                  <p className="text-primary-foreground/80 text-base sm:text-lg">{user?.college}</p>
+                  {location && location.address && (
+                    <div className="flex items-center gap-2 text-sm text-primary-foreground/80 mt-1">
+                      <MapPin className="w-4 h-4" />
+                      <span>{location.address}</span>
+                    </div>
+                  )}
+                  <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start space-y-2 sm:space-y-0 sm:space-x-4 mt-2 text-sm">
+                    <span>{user?.course} • {user?.year}</span>
+                    <span className="hidden sm:inline">•</span>
+                    <div className="flex items-center space-x-1">
+                      <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                      <span>4.8 Rating</span>
+                    </div>
+                  </div>
+                  {user?.role === 'student' && sellerStatus !== 'approved' && (
+                    <Button
+                      variant="hero"
+                      size="sm"
+                      onClick={handleRegisterSeller}
+                      disabled={applyLoading || sellerStatus === 'pending'}
+                      className="mt-4"
+                    >
+                      {sellerStatus === 'pending' ? 'Application Pending' : applyLoading ? 'Applying...' : 'Register as Seller'}
+                    </Button>
+                  )}
+                </div>
+                <div className="flex flex-row md:flex-col gap-2 justify-center md:justify-start">
+                <Button variant="secondary" size="sm" onClick={() => setShowEditProfileModal(true)}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Profile
+                </Button>
+                  <Button variant="destructive" size="sm" onClick={logout}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+                </div>
               </div>
-            ) : (
-              <>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mt-2 sm:mt-4">
-              <h2 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-0">My Listings</h2>
-              <Button variant="hero" className="w-full sm:w-auto" onClick={() => setShowAddModal(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add New Item
-              </Button>
+              {/* Stats - TODO: Replace with real data */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+              <Card className="bg-primary-foreground/10 border-primary-foreground/20">
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold">{statsLoading ? '-' : dashboardStats.itemsSold}</div>
+                  <div className="text-sm text-primary-foreground/80">Items Sold</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-primary-foreground/10 border-primary-foreground/20">
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold">{statsLoading ? '-' : dashboardStats.itemsBought}</div>
+                  <div className="text-sm text-primary-foreground/80">Items Bought</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-primary-foreground/10 border-primary-foreground/20">
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold">{statsLoading ? '-' : (dashboardStats.totalEarned !== '-' ? `₹${dashboardStats.totalEarned}` : '-')}</div>
+                  <div className="text-sm text-primary-foreground/80">Total Earned</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-primary-foreground/10 border-primary-foreground/20">
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold">{statsLoading ? '-' : dashboardStats.profileViews}</div>
+                  <div className="text-sm text-primary-foreground/80">Profile Views</div>
+                </CardContent>
+              </Card>
+              </div>
             </div>
-            {loading && <div>Loading your listings...</div>}
-            {error && <div className="text-red-500">{error}</div>}
-            {!loading && !error && sellingItems.length === 0 && (
-              <div className="text-muted-foreground">No listings found.</div>
-            )}
-            {!loading && !error && sellingItems.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {sellingItems.map((item: any) => (
-                  <Card key={item._id} className="overflow-hidden hover:shadow-medium transition-all duration-300">
-                        <CardContent className="p-4 sm:p-6">
-                          <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+          </div>
+          {/* Dashboard Content */}
+          <div className="container mx-auto px-2 sm:px-4 py-6 sm:py-8">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList
+              className="flex flex-nowrap gap-2 overflow-x-auto w-full mb-4 bg-white/60 rounded-lg p-1 sm:justify-center sm:gap-4 text-sm sm:text-base scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-300"
+            >
+              <TabsTrigger value="selling" className="flex items-center space-x-2">
+                <Package className="w-4 h-4" />
+                <span>My Listings</span>
+              </TabsTrigger>
+              <TabsTrigger value="marketplace" className="flex items-center space-x-2">
+                <ShoppingCart className="w-4 h-4" />
+                <span>Marketplace</span>
+              </TabsTrigger>
+              <TabsTrigger value="buyRequests" className="flex items-center space-x-2">
+                <span>Buy Requests</span>
+              </TabsTrigger>
+              <TabsTrigger value="myBuyRequests" className="flex items-center space-x-2">
+                <span>My Buy Requests</span>
+              </TabsTrigger>
+              <TabsTrigger value="buying" className="flex items-center space-x-2">
+                <span>Purchase History</span>
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="selling" className="space-y-4 sm:space-y-6">
+              {user?.role === 'student' && sellerStatus !== 'approved' ? (
+                <div className="text-center text-muted-foreground">
+                  {sellerStatus === 'pending'
+                    ? 'Your seller application is pending approval. You will be able to list products once approved.'
+                    : 'You must be an approved seller to list products. Please apply using the button above.'}
+                </div>
+              ) : (
+                <>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mt-2 sm:mt-4">
+                <h2 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-0">My Listings</h2>
+                <Button variant="hero" className="w-full sm:w-auto" onClick={() => setShowAddModal(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add New Item
+                </Button>
+              </div>
+              {loading && <div>Loading your listings...</div>}
+              {error && <div className="text-red-500">{error}</div>}
+              {!loading && !error && sellingItems.length === 0 && (
+                <div className="text-muted-foreground">No listings found.</div>
+              )}
+              {!loading && !error && sellingItems.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {sellingItems.map((item: any) => (
+                    <Card key={item._id} className="overflow-hidden hover:shadow-medium transition-all duration-300">
+                          <CardContent className="p-4 sm:p-6">
+                            <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
                         <img
                           src={item.images && item.images[0]}
                           alt={item.title}
@@ -1097,6 +1110,8 @@ const StudentDashboard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </>
+      )}
     </div>
   );
 };

@@ -28,6 +28,23 @@ app.use(cors({
 
 app.use(express.json());
 
+// Request timeout middleware
+app.use((req, res, next) => {
+  req.setTimeout(30000, () => {
+    res.status(408).json({ 
+      success: false, 
+      message: 'Request timeout' 
+    });
+  });
+  next();
+});
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
 // Health check
 app.get('/', (req, res) => res.send('Campus Swapmeet Backend Running'));
 
@@ -35,10 +52,34 @@ app.get('/', (req, res) => res.send('Campus Swapmeet Backend Running'));
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+  maxPoolSize: 10,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+  retryWrites: true,
+  w: 'majority'
 }).then(() => {
   console.log('MongoDB connected');
 }).catch((err) => {
   console.error('MongoDB connection error:', err);
+});
+
+// Handle MongoDB connection events
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('MongoDB disconnected');
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('MongoDB reconnected');
+});
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  await mongoose.connection.close();
+  process.exit(0);
 });
 
 app.use('/api/auth', require('./routes/auth'));
@@ -49,6 +90,49 @@ app.use('/api/favorites', require('./routes/favorites'));
 app.use('/api/seller', require('./routes/seller'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/admin', require('./routes/admin'));
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+  
+  // Handle specific error types
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Validation error', 
+      errors: Object.values(err.errors).map(e => e.message) 
+    });
+  }
+  
+  if (err.name === 'CastError') {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Invalid ID format' 
+    });
+  }
+  
+  if (err.name === 'MongoError' && err.code === 11000) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Duplicate field value' 
+    });
+  }
+  
+  // Default error response
+  res.status(500).json({ 
+    success: false, 
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({ 
+    success: false, 
+    message: 'Route not found' 
+  });
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`)); 
