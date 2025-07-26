@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://studennt-bazaar.vercel.app/api/$1"
+      "destination": "/api/$1"
     }
   ]
 } 

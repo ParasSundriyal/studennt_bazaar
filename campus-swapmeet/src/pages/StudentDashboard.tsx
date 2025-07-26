@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Loader2 } from 'lucide-react';
 
 // Helper to get API URL
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 const api = (path: string) => `${API_URL}${path}`;
 
 const StudentDashboard = () => {
@@ -253,7 +253,7 @@ const StudentDashboard = () => {
     setBuyLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(api(`${api('/products')}/${showBuyModal.product._id}/${'buy-request'}`), {
+      const res = await fetch(api(`/products/${showBuyModal.product._id}/buy-request`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -297,7 +297,7 @@ const StudentDashboard = () => {
     setBuyReqActionLoading(id + action);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(api(`${api('/products/buy-requests')}/${id}/${action}`), {
+      const res = await fetch(api(`/products/buy-requests/${id}/${action}`), {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
