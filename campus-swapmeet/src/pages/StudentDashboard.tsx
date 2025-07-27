@@ -183,7 +183,7 @@ const StudentDashboard = () => {
     setEditLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(api(`${api('/products')}/${editModal.product._id}`), {
+      const res = await fetch(api(`/products/${editModal.product._id}`), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -210,7 +210,7 @@ const StudentDashboard = () => {
     setDeleteLoading(productId);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(api(`${api('/products')}/${productId}`), {
+      const res = await fetch(api(`/products/${productId}`), {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });

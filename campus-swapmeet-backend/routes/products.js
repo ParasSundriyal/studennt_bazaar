@@ -96,7 +96,7 @@ router.delete('/:id', auth, requireSeller, async (req, res) => {
   if (String(product.seller) !== req.user._id.toString() && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
     return res.status(403).json({ success: false, message: 'Not your product' });
   }
-  await product.remove();
+  await Product.findByIdAndDelete(product._id);
   res.json({ success: true, message: 'Product deleted' });
 });
 
