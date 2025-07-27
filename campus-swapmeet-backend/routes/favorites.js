@@ -2,38 +2,43 @@ const express = require('express');
 const router = express.Router();
 const Favorite = require('../models/Favorite');
 const Product = require('../models/Product');
-const jwt = require('jsonwebtoken');
+const auth = require('../middleware/auth');
 
-// JWT middleware
-function requireAuth(req, res, next) {
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ success: false, message: 'No token' });
+// Get user's favorites
+router.get('/', auth, async (req, res) => {
   try {
-    const decoded = jwt.verify(auth.split(' ')[1], process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch {
-    res.status(401).json({ success: false, message: 'Invalid token' });
+    const favorites = await Favorite.find({ user: req.user._id })
+      .populate('product', 'title price images seller')
+      .populate('product.seller', 'name collegeId');
+    res.json({ success: true, favorites });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
-}
-
-// Add a favorite
-router.post('/', requireAuth, async (req, res) => {
-  const { product } = req.body;
-  const favorite = await Favorite.create({ user: req.user.id, product });
-  res.status(201).json({ success: true, favorite });
 });
 
-// Remove a favorite
-router.delete('/:productId', requireAuth, async (req, res) => {
-  await Favorite.findOneAndDelete({ user: req.user.id, product: req.params.productId });
-  res.json({ success: true, message: 'Favorite removed' });
+// Add to favorites
+router.post('/', auth, async (req, res) => {
+  try {
+    const { productId } = req.body;
+    const existing = await Favorite.findOne({ user: req.user._id, product: productId });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Already in favorites' });
+    }
+    const favorite = await Favorite.create({ user: req.user._id, product: productId });
+    res.status(201).json({ success: true, favorite });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
 });
 
-// List user's favorites
-router.get('/', requireAuth, async (req, res) => {
-  const favorites = await Favorite.find({ user: req.user.id }).populate('product');
-  res.json({ success: true, favorites });
+// Remove from favorites
+router.delete('/:productId', auth, async (req, res) => {
+  try {
+    await Favorite.findOneAndDelete({ user: req.user._id, product: req.params.productId });
+    res.json({ success: true, message: 'Removed from favorites' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
 });
 
 module.exports = router; 

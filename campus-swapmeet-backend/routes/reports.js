@@ -1,46 +1,67 @@
 const express = require('express');
 const router = express.Router();
 const Report = require('../models/Report');
-const jwt = require('jsonwebtoken');
+const auth = require('../middleware/auth');
 
-// JWT middleware
-function requireAuth(req, res, next) {
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ success: false, message: 'No token' });
-  try {
-    const decoded = jwt.verify(auth.split(' ')[1], process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch {
-    res.status(401).json({ success: false, message: 'Invalid token' });
-  }
-}
-
-function requireAdmin(req, res, next) {
+// Get all reports (admin only)
+router.get('/', auth, async (req, res) => {
   if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-    return res.status(403).json({ success: false, message: 'Only admin can perform this action' });
+    return res.status(403).json({ success: false, message: 'Only admin can view reports' });
   }
-  next();
-}
-
-// Create a report
-router.post('/', requireAuth, async (req, res) => {
-  const { product, reason } = req.body;
-  const report = await Report.create({ product, reason, reportedBy: req.user.id });
-  res.status(201).json({ success: true, report });
+  try {
+    const reports = await Report.find()
+      .populate('reporter', 'name collegeId')
+      .populate('reportedUser', 'name collegeId')
+      .populate('product', 'title price images')
+      .sort({ createdAt: -1 });
+    res.json({ success: true, reports });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
 });
 
-// List all reports (admin only)
-router.get('/', requireAuth, requireAdmin, async (req, res) => {
-  const reports = await Report.find().populate('product').populate('reportedBy', 'name collegeId');
-  res.json({ success: true, reports });
+// Create a report
+router.post('/', auth, async (req, res) => {
+  try {
+    const { type, reason, reportedUserId, productId, description } = req.body;
+    const report = await Report.create({
+      type,
+      reason,
+      description,
+      reporter: req.user._id,
+      reportedUser: reportedUserId,
+      product: productId,
+      status: 'pending'
+    });
+    res.status(201).json({ success: true, report });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
 });
 
 // Update report status (admin only)
-router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
-  const report = await Report.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  if (!report) return res.status(404).json({ success: false, message: 'Report not found' });
-  res.json({ success: true, report });
+router.put('/:id/status', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only admin can update reports' });
+  }
+  try {
+    const { status } = req.body;
+    const report = await Report.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    ).populate('reporter', 'name collegeId')
+     .populate('reportedUser', 'name collegeId')
+     .populate('product', 'title price images');
+    
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found' });
+    }
+    
+    res.json({ success: true, report });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
 });
 
 module.exports = router; 

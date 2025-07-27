@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Plus, Package, ShoppingCart, Star, MapPin, Edit, Eye, Heart, TrendingUp, LogOut, X } from 'lucide-react';
+import ProductCard from '@/components/ProductCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import Webcam from 'react-webcam';
@@ -15,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Loader2 } from 'lucide-react';
 
 // Helper to get API URL
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const api = (path: string) => `${API_URL}${path}`;
 
 const StudentDashboard = () => {
@@ -892,38 +893,26 @@ const StudentDashboard = () => {
                   return dist <= marketplaceDistance;
                 })
                 .map((item: any) => (
-                  <Card key={item._id} className="overflow-hidden hover:shadow-medium transition-all duration-300">
-                    <CardContent className="p-4 sm:p-6">
-                      <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                        <img
-                          src={item.images && item.images[0]}
-                          alt={item.title}
-                          className="w-full sm:w-24 h-32 sm:h-24 object-cover rounded-lg mx-auto sm:mx-0"
-                        />
-                        <div className="flex-1 space-y-2">
-                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
-                            <div>
-                              <h3 className="font-semibold text-lg">{item.title}</h3>
-                              <div className="flex items-center space-x-2">
-                                <span className="text-xl font-bold text-primary">₹{item.price?.toLocaleString()}</span>
-                              </div>
-                              <div className="text-xs text-muted-foreground">by {item.seller?.name || 'Unknown'}</div>
-                              {/* Show distance if user and product have location */}
-                              {user?.location && item.location && item.location.lat && item.location.lng && (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {getDistanceFromLatLonInKm(user.location.lat, user.location.lng, item.location.lat, item.location.lng).toFixed(2)} km away
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <span>Listed on {new Date(item.createdAt).toLocaleDateString()}</span>
-                          <Button variant="hero" size="sm" className="mt-2" onClick={() => handleOpenBuyModal(item)}>
-                            Send Buy Request
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <ProductCard
+                    key={item._id}
+                    id={item._id}
+                    title={item.title}
+                    price={item.price}
+                    originalPrice={item.originalPrice}
+                    image={item.images && item.images[0]}
+                    location={item.location ? `${getDistanceFromLatLonInKm(user?.location?.lat || 0, user?.location?.lng || 0, item.location.lat, item.location.lng).toFixed(2)} km away` : (item.collegeName || '')}
+                    seller={item.seller?.name || 'Unknown'}
+                    sellerId={item.seller?._id || ''}
+                    rating={item.rating || 0}
+                    category={item.category}
+                    isLiked={false}
+                    showChatButton={true}
+                    footer={
+                      <Button variant="hero" size="sm" className="mt-2 w-full" onClick={() => handleOpenBuyModal(item)}>
+                        Send Buy Request
+                      </Button>
+                    }
+                  />
                 ))}
             </div>
           </TabsContent>

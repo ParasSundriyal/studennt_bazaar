@@ -1,12 +1,17 @@
-import { Search, User, ShoppingBag, Plus, LogOut } from "lucide-react";
+import { Search, User, ShoppingBag, Plus, LogOut, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
+import { useChat } from "@/contexts/ChatContext";
 import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import ChatWidget from "./ChatWidget";
 
 const Header = () => {
   const { user, logout } = useAuth();
+  const { unreadCount } = useChat();
   const navigate = useNavigate();
+  const [showChat, setShowChat] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -51,6 +56,20 @@ const Header = () => {
                 >
                   Dashboard
                 </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setShowChat(true)}
+                  className="relative"
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Messages
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </Button>
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
@@ -73,6 +92,9 @@ const Header = () => {
           </div>
         </div>
       </div>
+      
+      {/* Chat Widget */}
+      <ChatWidget onClose={() => setShowChat(false)} isOpen={showChat} />
     </header>
   );
 };

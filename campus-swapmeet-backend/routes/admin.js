@@ -3,36 +3,45 @@ const router = express.Router();
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Report = require('../models/Report');
-const jwt = require('jsonwebtoken');
+const auth = require('../middleware/auth');
 
-function requireAuth(req, res, next) {
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ success: false, message: 'No token' });
-  try {
-    const decoded = jwt.verify(auth.split(' ')[1], process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch {
-    res.status(401).json({ success: false, message: 'Invalid token' });
-  }
-}
-
-router.get('/recent-activity', requireAuth, async (req, res) => {
-  if (req.user.role !== 'superadmin') {
-    return res.status(403).json({ success: false, message: 'Only superadmin can access this endpoint' });
+// Get all users (admin only)
+router.get('/users', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only admin can access this endpoint' });
   }
   try {
-    const recentUsers = await User.find().sort({ createdAt: -1 }).limit(5);
-    const recentProducts = await Product.find().sort({ updatedAt: -1 }).limit(5);
-    const recentReports = await Report.find().sort({ createdAt: -1 }).limit(5).populate('product');
+    const users = await User.find().select('-password');
+    res.json({ success: true, users });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
 
-    const activities = [
-      ...recentUsers.map(u => ({ type: 'user', message: `New user registered: ${u.name} from ${u.collegeName}`, date: u.createdAt })),
-      ...recentProducts.map(p => ({ type: 'product', message: `Listing updated: ${p.title}`, date: p.updatedAt })),
-      ...recentReports.map(r => ({ type: 'report', message: `Report received for ${r.product?.title || 'a product'}`, date: r.createdAt }))
-    ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+// Get all products (admin only)
+router.get('/products', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only admin can access this endpoint' });
+  }
+  try {
+    const products = await Product.find().populate('seller', 'name collegeId');
+    res.json({ success: true, products });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
 
-    res.json({ success: true, activities });
+// Get all reports (admin only)
+router.get('/reports', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only admin can access this endpoint' });
+  }
+  try {
+    const reports = await Report.find()
+      .populate('reporter', 'name collegeId')
+      .populate('reportedUser', 'name collegeId')
+      .populate('product', 'title price images');
+    res.json({ success: true, reports });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }

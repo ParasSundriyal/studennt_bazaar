@@ -25,7 +25,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 // Helper to get API URL
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const api = (path: string) => `${API_URL}${path}`;
 
 const SuperadminDashboard = () => {
@@ -90,11 +90,11 @@ const SuperadminDashboard = () => {
   }, []);
 
   const handleApprove = (id: number) => {
-    console.log("Approving listing:", id);
+    // TODO: Implement approve functionality
   };
 
   const handleReject = (id: number) => {
-    console.log("Rejecting listing:", id);
+    // TODO: Implement reject functionality
   };
 
   const handleApproveSeller = async (userId: string) => {

@@ -1,31 +1,38 @@
 import { Heart, MapPin, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import StartChatButton from "./StartChatButton";
 
 interface ProductCardProps {
+  id: string;
   title: string;
   price: number;
   originalPrice?: number;
   image: string;
   location: string;
   seller: string;
+  sellerId: string;
   rating: number;
   category: string;
   isLiked?: boolean;
   footer?: React.ReactNode;
+  showChatButton?: boolean;
 }
 
 const ProductCard = ({ 
+  id,
   title, 
   price, 
   originalPrice, 
   image, 
   location, 
   seller, 
+  sellerId,
   rating, 
   category,
   isLiked = false,
-  footer
+  footer,
+  showChatButton = false
 }: ProductCardProps) => {
   return (
     <div className="group bg-card rounded-xl overflow-hidden shadow-soft hover:shadow-medium transition-all duration-300 hover:scale-105 transform border border-border">
@@ -78,6 +85,20 @@ const ProductCard = ({
             </div>
           </div>
         </div>
+        
+        {/* Chat Button */}
+        {showChatButton && (
+          <div className="mt-3">
+            <StartChatButton
+              sellerId={sellerId}
+              productId={id}
+              productTitle={title}
+              variant="outline"
+              size="sm"
+              className="w-full"
+            />
+          </div>
+        )}
       </div>
       {footer && <div className="p-4 pt-0">{footer}</div>}
     </div>

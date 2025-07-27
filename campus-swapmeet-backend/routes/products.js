@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
-const jwt = require('jsonwebtoken');
+const auth = require('../middleware/auth');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
@@ -22,19 +22,6 @@ const storage = new CloudinaryStorage({
 });
 const upload = multer({ storage });
 
-// JWT middleware
-function requireAuth(req, res, next) {
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ success: false, message: 'No token' });
-  try {
-    const decoded = jwt.verify(auth.split(' ')[1], process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch {
-    res.status(401).json({ success: false, message: 'Invalid token' });
-  }
-}
-
 // Only allow sellers
 function requireSeller(req, res, next) {
   if ((req.user.role !== 'admin' && req.user.role !== 'superadmin') && req.user.sellerStatus !== 'approved') {
@@ -44,12 +31,12 @@ function requireSeller(req, res, next) {
 }
 
 // Create product (with image upload)
-router.post('/', requireAuth, requireSeller, upload.array('images', 5), async (req, res) => {
+router.post('/', auth, requireSeller, upload.array('images', 5), async (req, res) => {
   try {
     const { title, description, price, category } = req.body;
     const images = req.files.map(file => file.path);
     const product = await Product.create({
-      title, description, price, category, images, seller: req.user.id, status: 'active'
+      title, description, price, category, images, seller: req.user._id, status: 'active'
     });
     res.status(201).json({ success: true, product });
   } catch (err) {
@@ -74,9 +61,9 @@ router.get('/all', async (req, res) => {
 });
 
 // Get current user's selling items
-router.get('/my', requireAuth, async (req, res) => {
+router.get('/my', auth, async (req, res) => {
   try {
-    const products = await Product.find({ seller: req.user.id }).sort({ createdAt: -1 });
+    const products = await Product.find({ seller: req.user._id }).sort({ createdAt: -1 });
     res.json({ success: true, products });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
@@ -91,10 +78,10 @@ router.get('/:id', async (req, res) => {
 });
 
 // Update product (seller only)
-router.put('/:id', requireAuth, requireSeller, async (req, res) => {
+router.put('/:id', auth, requireSeller, async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
-  if (String(product.seller) !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+  if (String(product.seller) !== req.user._id.toString() && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
     return res.status(403).json({ success: false, message: 'Not your product' });
   }
   Object.assign(product, req.body);
@@ -103,22 +90,23 @@ router.put('/:id', requireAuth, requireSeller, async (req, res) => {
 });
 
 // Delete product (seller only)
-router.delete('/:id', requireAuth, requireSeller, async (req, res) => {
+router.delete('/:id', auth, requireSeller, async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
-  if (String(product.seller) !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+  if (String(product.seller) !== req.user._id.toString() && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
     return res.status(403).json({ success: false, message: 'Not your product' });
   }
-  await product.deleteOne();
+  await product.remove();
   res.json({ success: true, message: 'Product deleted' });
 });
 
 // Get all buy requests for the logged-in seller
-router.get('/buy-requests/seller', requireAuth, async (req, res) => {
+router.get('/buy-requests/seller', auth, async (req, res) => {
   try {
-    const requests = await BuyRequest.find({ seller: req.user.id })
-      .populate('product')
-      .populate('buyer', 'name collegeId');
+    const requests = await BuyRequest.find({ seller: req.user._id })
+      .populate('buyer', 'name collegeId')
+      .populate('product', 'title price images')
+      .sort({ createdAt: -1 });
     res.json({ success: true, requests });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
@@ -126,11 +114,12 @@ router.get('/buy-requests/seller', requireAuth, async (req, res) => {
 });
 
 // Get all buy requests for the logged-in buyer
-router.get('/buy-requests/buyer', requireAuth, async (req, res) => {
+router.get('/buy-requests/buyer', auth, async (req, res) => {
   try {
-    const requests = await BuyRequest.find({ buyer: req.user.id })
-      .populate('product')
-      .populate('seller', 'name collegeId');
+    const requests = await BuyRequest.find({ buyer: req.user._id })
+      .populate('seller', 'name collegeId')
+      .populate('product', 'title price images')
+      .sort({ createdAt: -1 });
     res.json({ success: true, requests });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
@@ -138,19 +127,15 @@ router.get('/buy-requests/buyer', requireAuth, async (req, res) => {
 });
 
 // Approve a buy request (seller only)
-router.post('/buy-requests/:requestId/approve', requireAuth, async (req, res) => {
+router.post('/buy-requests/:requestId/approve', auth, async (req, res) => {
   try {
     const request = await BuyRequest.findById(req.params.requestId);
-    if (!request) return res.status(404).json({ success: false, message: 'Buy request not found' });
-    if (String(request.seller) !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
+    if (String(request.seller) !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not your request' });
+    }
     request.status = 'approved';
     await request.save();
-    // Mark the product as sold
-    const product = await Product.findById(request.product);
-    if (product) {
-      product.status = 'sold';
-      await product.save();
-    }
     res.json({ success: true, request });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
@@ -158,11 +143,13 @@ router.post('/buy-requests/:requestId/approve', requireAuth, async (req, res) =>
 });
 
 // Reject a buy request (seller only)
-router.post('/buy-requests/:requestId/reject', requireAuth, async (req, res) => {
+router.post('/buy-requests/:requestId/reject', auth, async (req, res) => {
   try {
     const request = await BuyRequest.findById(req.params.requestId);
-    if (!request) return res.status(404).json({ success: false, message: 'Buy request not found' });
-    if (String(request.seller) !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
+    if (String(request.seller) !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not your request' });
+    }
     request.status = 'rejected';
     await request.save();
     res.json({ success: true, request });
@@ -205,27 +192,20 @@ router.post('/:id/guest-buy-request', async (req, res) => {
 });
 
 // Create a buy request (authenticated users)
-router.post('/:id/buy-request', requireAuth, async (req, res) => {
+router.post('/:id/buy-request', auth, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
-    if (String(product.seller) === req.user.id) return res.status(400).json({ success: false, message: 'Cannot send buy request to your own product' });
-    const { message, buyerName, buyerPhone } = req.body;
-    
-    if (!buyerName || !buyerPhone) {
-      return res.status(400).json({ success: false, message: 'Buyer name and phone are required' });
+    if (String(product.seller) === req.user._id.toString()) {
+      return res.status(400).json({ success: false, message: 'Cannot buy your own product' });
     }
-    
-    const buyRequest = await BuyRequest.create({
+    const request = await BuyRequest.create({
       product: product._id,
-      buyer: req.user.id,
+      buyer: req.user._id,
       seller: product.seller,
-      message,
-      buyerName,
-      buyerPhone,
       status: 'pending'
     });
-    res.status(201).json({ success: true, buyRequest });
+    res.status(201).json({ success: true, request });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }

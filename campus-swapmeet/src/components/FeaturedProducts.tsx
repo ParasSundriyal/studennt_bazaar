@@ -7,7 +7,7 @@ import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 // Helper to get API URL
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const api = (path: string) => `${API_URL}${path}`;
 
 interface FeaturedProductsProps {
@@ -149,15 +149,18 @@ const FeaturedProducts = ({ selectedCategory }: FeaturedProductsProps) => {
             {products.map((product) => (
               <ProductCard
                 key={product._id}
+                id={product._id}
                 title={product.title}
                 price={product.price}
                 originalPrice={product.originalPrice}
                 image={product.images && product.images[0]}
                 location={product.location || product.collegeName || ''}
                 seller={product.seller?.name || ''}
+                sellerId={product.seller?._id || ''}
                 rating={product.rating || null}
                 category={product.category}
                 isLiked={false}
+                showChatButton={true}
                 footer={
                   <Button variant="hero" size="sm" className="mt-2 w-full" onClick={() => handleBuyClick(product)}>
                     Send Buy Request

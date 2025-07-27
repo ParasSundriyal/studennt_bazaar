@@ -1,60 +1,86 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
-const jwt = require('jsonwebtoken');
+const auth = require('../middleware/auth');
 
-// JWT middleware
-function requireAuth(req, res, next) {
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ success: false, message: 'No token' });
+// Apply for seller status
+router.post('/apply', auth, async (req, res) => {
   try {
-    const decoded = jwt.verify(auth.split(' ')[1], process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch {
-    res.status(401).json({ success: false, message: 'Invalid token' });
+    const { businessName, businessDescription, phoneNumber } = req.body;
+    
+    // Update user with seller application
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        sellerStatus: 'pending',
+        businessName,
+        businessDescription,
+        phoneNumber
+      },
+      { new: true }
+    ).select('-password');
+    
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
-}
+});
 
-function requireSuperadmin(req, res, next) {
-  if (req.user.role !== 'superadmin') {
-    return res.status(403).json({ success: false, message: 'Only superadmin can perform this action' });
+// Get seller applications (admin only)
+router.get('/applications', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only admin can view applications' });
   }
-  next();
-}
-
-// Student applies to become seller
-router.post('/apply', requireAuth, async (req, res) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-  if (user.role !== 'student') return res.status(400).json({ success: false, message: 'Only students can apply' });
-  user.sellerStatus = 'pending';
-  await user.save();
-  res.json({ success: true, message: 'Seller application submitted' });
+  try {
+    const applications = await User.find({ sellerStatus: 'pending' }).select('-password');
+    res.json({ success: true, applications });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
 });
 
-// Superadmin approves seller
-router.post('/approve/:userId', requireAuth, requireSuperadmin, async (req, res) => {
-  const user = await User.findById(req.params.userId);
-  if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-  user.sellerStatus = 'approved';
-  await user.save();
-  res.json({ success: true, message: 'Seller approved' });
+// Approve seller application (admin only)
+router.post('/applications/:userId/approve', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only admin can approve applications' });
+  }
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { sellerStatus: 'approved' },
+      { new: true }
+    ).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
 });
 
-// Superadmin rejects seller
-router.post('/reject/:userId', requireAuth, requireSuperadmin, async (req, res) => {
-  const user = await User.findById(req.params.userId);
-  if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-  user.sellerStatus = 'rejected';
-  await user.save();
-  res.json({ success: true, message: 'Seller rejected' });
-});
-
-// List all pending seller applications (superadmin)
-router.get('/pending', requireAuth, requireSuperadmin, async (req, res) => {
-  const pending = await User.find({ sellerStatus: 'pending', role: 'student' });
-  res.json({ success: true, pending });
+// Reject seller application (admin only)
+router.post('/applications/:userId/reject', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only admin can reject applications' });
+  }
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { sellerStatus: 'rejected' },
+      { new: true }
+    ).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
 });
 
 module.exports = router; 

@@ -16,6 +16,7 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   login: (collegeId: string, password: string) => Promise<boolean>;
   signup: (data: SignupData) => Promise<boolean>;
   logout: () => void;
@@ -38,11 +39,12 @@ interface SignupData {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Helper to get API URL
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const api = (path: string) => `${API_URL}${path}`;
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [isLoading, setIsLoading] = useState(false);
   const [loadingUser, setLoadingUser] = useState(true);
 
@@ -75,14 +77,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               location: data.user.location || undefined,
               // Add other fields as needed
             });
+            setToken(token);
           } else {
             // Token is invalid
             setUser(null);
+            setToken(null);
             localStorage.removeItem('token');
           }
         } catch (error) {
           console.error('Error restoring user session:', error);
           setUser(null);
+          setToken(null);
           localStorage.removeItem('token');
         }
       }
@@ -114,6 +119,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Add other fields as needed
         });
         localStorage.setItem('token', result.token);
+        setToken(result.token);
         setIsLoading(false);
         return true;
       }
@@ -147,6 +153,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Add other fields as needed
         });
         localStorage.setItem('token', result.token);
+        setToken(result.token);
         setIsLoading(false);
         return true;
       }
@@ -160,11 +167,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     setUser(null);
+    setToken(null);
     localStorage.removeItem('token');
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isLoading, loadingUser }}>
+    <AuthContext.Provider value={{ user, token, login, signup, logout, isLoading, loadingUser }}>
       {children}
     </AuthContext.Provider>
   );

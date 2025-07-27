@@ -1,53 +1,57 @@
 const express = require('express');
 const router = express.Router();
 const Category = require('../models/Category');
-const jwt = require('jsonwebtoken');
+const auth = require('../middleware/auth');
 
-// JWT middleware
-function requireAuth(req, res, next) {
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ success: false, message: 'No token' });
-  try {
-    const decoded = jwt.verify(auth.split(' ')[1], process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch {
-    res.status(401).json({ success: false, message: 'Invalid token' });
-  }
-}
-
-function requireAdmin(req, res, next) {
-  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-    return res.status(403).json({ success: false, message: 'Only admin can perform this action' });
-  }
-  next();
-}
-
-// List all active categories
+// Get all categories (public)
 router.get('/', async (req, res) => {
-  const categories = await Category.find({ isActive: true });
-  res.json({ success: true, categories });
+  try {
+    const categories = await Category.find().sort({ name: 1 });
+    res.json({ success: true, categories });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
 });
 
-// Create category
-router.post('/', requireAuth, requireAdmin, async (req, res) => {
-  const { name, description, icon } = req.body;
-  const category = await Category.create({ name, description, icon });
-  res.status(201).json({ success: true, category });
+// Create category (admin only)
+router.post('/', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only admin can create categories' });
+  }
+  try {
+    const category = await Category.create(req.body);
+    res.status(201).json({ success: true, category });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
 });
 
-// Update category
-router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
-  const category = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  if (!category) return res.status(404).json({ success: false, message: 'Category not found' });
-  res.json({ success: true, category });
+// Update category (admin only)
+router.put('/:id', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only admin can update categories' });
+  }
+  try {
+    const category = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!category) return res.status(404).json({ success: false, message: 'Category not found' });
+    res.json({ success: true, category });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
 });
 
-// Delete category
-router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
-  const category = await Category.findByIdAndDelete(req.params.id);
-  if (!category) return res.status(404).json({ success: false, message: 'Category not found' });
-  res.json({ success: true, message: 'Category deleted' });
+// Delete category (admin only)
+router.delete('/:id', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only admin can delete categories' });
+  }
+  try {
+    const category = await Category.findByIdAndDelete(req.params.id);
+    if (!category) return res.status(404).json({ success: false, message: 'Category not found' });
+    res.json({ success: true, message: 'Category deleted' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
 });
 
 module.exports = router; 

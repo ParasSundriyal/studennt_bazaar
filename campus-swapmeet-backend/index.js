@@ -1,13 +1,56 @@
 require('dotenv').config();
+
+// Validate required environment variables
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+  console.error('❌ Missing required environment variables:', missingEnvVars.join(', '));
+  console.error('Please set these variables in your .env file or deployment environment');
+  process.exit(1);
+}
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const http = require('http');
+const socketIo = require('socket.io');
 
 const app = express();
-const allowedOrigins = [process.env.FRONTEND_URL, 'http://localhost:8080'];
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: function(origin, callback) {
+      // Allow requests with no origin (like mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      
+      const allowedOrigins = [
+        'http://localhost:8080',
+        'http://localhost:3000',
+        process.env.FRONTEND_URL
+      ].filter(Boolean);
+      
+      if (
+        allowedOrigins.includes(origin) ||
+        /\.vercel\.app$/.test(origin) // Allow any Vercel preview or production domain
+      ) {
+        return callback(null, true);
+      }
+      
+      return callback(new Error('Not allowed by CORS'), false);
+    },
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+const allowedOrigins = [
+  'http://localhost:8080',
+  'http://localhost:3000',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
   origin: function(origin, callback) {
-    console.log('CORS check:', origin, allowedOrigins); // Debug log
     // allow requests with no origin (like mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
     if (
@@ -41,7 +84,6 @@ app.use((req, res, next) => {
 
 // Request logging middleware
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
@@ -90,6 +132,118 @@ app.use('/api/favorites', require('./routes/favorites'));
 app.use('/api/seller', require('./routes/seller'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/chat', require('./routes/chat'));
+
+// Socket.io connection handling
+const jwt = require('jsonwebtoken');
+const User = require('./models/User');
+
+// Store connected users
+const connectedUsers = new Map();
+
+// Socket authentication middleware
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth.token;
+    if (!token) {
+      return next(new Error('Authentication error'));
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select('-password');
+    
+    if (!user) {
+      return next(new Error('User not found'));
+    }
+
+    socket.userId = user._id.toString();
+    socket.user = user;
+    next();
+  } catch (error) {
+    next(new Error('Authentication error'));
+  }
+});
+
+io.on('connection', (socket) => {
+  // Add user to connected users map
+  connectedUsers.set(socket.userId, socket.id);
+
+  // Join user to their personal room
+  socket.join(socket.userId);
+
+  // Handle joining conversation room
+  socket.on('join-conversation', (conversationId) => {
+    socket.join(conversationId);
+  });
+
+  // Handle leaving conversation room
+  socket.on('leave-conversation', (conversationId) => {
+    socket.leave(conversationId);
+  });
+
+        // Handle new message
+      socket.on('send-message', async (data) => {
+        try {
+          const { conversationId, content, messageType = 'text', attachments = [] } = data;
+          
+          // Create message in database
+          const Message = require('./models/Message');
+          const Conversation = require('./models/Conversation');
+          
+          const message = new Message({
+            conversationId,
+            sender: socket.userId,
+            content,
+            messageType,
+            attachments
+          });
+          
+          await message.save();
+          
+          // Update conversation's last message
+          await Conversation.findByIdAndUpdate(conversationId, {
+            lastMessage: message._id,
+            lastMessageTime: new Date()
+          });
+          
+          // Populate sender info for the message
+          await message.populate('sender', 'name collegeId');
+          
+          // Emit message to conversation room
+          io.to(conversationId).emit('new-message', message);
+          
+          // Emit conversation update to all participants
+          const conversation = await Conversation.findById(conversationId)
+            .populate('participants', 'name collegeId collegeName')
+            .populate('productId', 'title images price')
+            .populate('lastMessage');
+          
+          // Emit to all participants in the conversation
+          conversation.participants.forEach(participant => {
+            io.to(participant._id.toString()).emit('conversation-updated', conversation);
+          });
+          
+        } catch (error) {
+          console.error('Error handling message:', error);
+          socket.emit('message-error', { message: 'Error sending message' });
+        }
+      });
+
+  // Handle typing indicator
+  socket.on('typing', (data) => {
+    const { conversationId, isTyping } = data;
+    socket.to(conversationId).emit('user-typing', {
+      userId: socket.userId,
+      userName: socket.user.name,
+      isTyping
+    });
+  });
+
+  // Handle disconnect
+  socket.on('disconnect', () => {
+    connectedUsers.delete(socket.userId);
+  });
+});
 
 // Global error handling middleware
 app.use((err, req, res, next) => {
@@ -135,4 +289,4 @@ app.use('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`)); 
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`)); 
