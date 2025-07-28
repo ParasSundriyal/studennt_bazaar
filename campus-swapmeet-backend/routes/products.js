@@ -225,10 +225,21 @@ router.post('/:id/buy-request', auth, async (req, res) => {
     if (String(product.seller) === req.user._id.toString()) {
       return res.status(400).json({ success: false, message: 'Cannot buy your own product' });
     }
+    const { message, buyerName, buyerPhone } = req.body;
+    if (!buyerName || !buyerPhone || !message) {
+      return res.status(400).json({ success: false, message: 'Buyer name, phone, and message are required' });
+    }
+    // Validate phone number format (basic validation)
+    if (!/^[0-9]{10}$/.test(buyerPhone.replace(/\D/g, ''))) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit phone number' });
+    }
     const request = await BuyRequest.create({
       product: product._id,
       buyer: req.user._id,
       seller: product.seller,
+      message,
+      buyerName,
+      buyerPhone,
       status: 'pending'
     });
     res.status(201).json({ success: true, request });

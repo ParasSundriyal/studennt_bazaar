@@ -244,6 +244,8 @@ const StudentDashboard = () => {
   const [marketplaceItems, setMarketplaceItems] = useState<any[]>([]);
   const [showBuyModal, setShowBuyModal] = useState<{ open: boolean, product: any | null }>({ open: false, product: null });
   const [buyMessage, setBuyMessage] = useState('');
+  const [buyName, setBuyName] = useState(user?.name || '');
+  const [buyPhone, setBuyPhone] = useState(user?.phone || '');
   const [buyLoading, setBuyLoading] = useState(false);
 
   const handleOpenBuyModal = (product: any) => {
@@ -261,7 +263,7 @@ const StudentDashboard = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: buyMessage })
+        body: JSON.stringify({ message: buyMessage, buyerName: buyName, buyerPhone: buyPhone })
       });
       const data = await res.json();
       if (data.success) {
@@ -1173,6 +1175,29 @@ const StudentDashboard = () => {
             </button>
             <h3 className="text-xl font-bold mb-4">Send Buy Request</h3>
             <form onSubmit={handleSendBuyRequest} className="space-y-4 flex flex-col">
+              <div>
+                <label className="block mb-1 font-medium">Your Name</label>
+                <input
+                  type="text"
+                  className="w-full border rounded px-3 py-2"
+                  value={buyName}
+                  onChange={e => setBuyName(e.target.value)}
+                  required
+                  placeholder="Enter your name"
+                />
+              </div>
+              <div>
+                <label className="block mb-1 font-medium">Your Phone Number</label>
+                <input
+                  type="tel"
+                  className="w-full border rounded px-3 py-2"
+                  value={buyPhone}
+                  onChange={e => setBuyPhone(e.target.value)}
+                  required
+                  pattern="[0-9]{10}"
+                  placeholder="Enter your 10-digit phone number"
+                />
+              </div>
               <div>
                 <label className="block mb-1 font-medium">Message/Offer to Seller</label>
                 <textarea
