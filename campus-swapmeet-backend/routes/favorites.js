@@ -24,7 +24,11 @@ router.post('/', auth, async (req, res) => {
     if (existing) {
       return res.status(400).json({ success: false, message: 'Already in favorites' });
     }
-    const favorite = await Favorite.create({ user: req.user._id, product: productId });
+    let favorite = await Favorite.create({ user: req.user._id, product: productId });
+    favorite = await favorite.populate({
+      path: 'product',
+      populate: { path: 'seller', select: 'name collegeId' }
+    });
     res.status(201).json({ success: true, favorite });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });

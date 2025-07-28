@@ -14,6 +14,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-lea
 import L from 'leaflet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
+import ProductDetail from '@/components/ProductDetail';
 
 // Helper to get API URL
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -509,6 +510,97 @@ const StudentDashboard = () => {
     return R * c;
   }
 
+  // Marketplace filter state
+  const [marketplaceSearch, setMarketplaceSearch] = useState('');
+  const [marketplaceCategory, setMarketplaceCategory] = useState('');
+  const [marketplaceMinPrice, setMarketplaceMinPrice] = useState('');
+  const [marketplaceMaxPrice, setMarketplaceMaxPrice] = useState('');
+  const [marketplaceLocation, setMarketplaceLocation] = useState('');
+
+  // Update fetchMarketplaceItems to use filters
+  useEffect(() => {
+    const fetchMarketplaceItems = async () => {
+      try {
+        const params = new URLSearchParams();
+        if (marketplaceSearch) params.append('keyword', marketplaceSearch);
+        if (marketplaceCategory) params.append('category', marketplaceCategory);
+        if (marketplaceMinPrice) params.append('minPrice', marketplaceMinPrice);
+        if (marketplaceMaxPrice) params.append('maxPrice', marketplaceMaxPrice);
+        if (marketplaceLocation) params.append('location', marketplaceLocation);
+        const res = await fetch(api(`/products?${params.toString()}`));
+        const data = await res.json();
+        if (data.success) {
+          setMarketplaceItems(data.products.filter((p: any) => p.status === 'active' && p.seller && p.seller._id !== user?.id));
+        }
+      } catch {}
+    };
+    fetchMarketplaceItems();
+  }, [user, marketplaceSearch, marketplaceCategory, marketplaceMinPrice, marketplaceMaxPrice, marketplaceLocation]);
+
+  // Wishlist state
+  const [favorites, setFavorites] = useState<any[]>([]);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+
+  // Fetch favorites on load
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      setWishlistLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(api('/favorites'), {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          setFavorites(data.favorites.map((fav: any) => fav.product));
+        }
+      } catch {}
+      setWishlistLoading(false);
+    };
+    if (user) fetchFavorites();
+  }, [user]);
+
+  // Toggle favorite
+  const toggleFavorite = async (productId: string, liked: boolean) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!liked) {
+        // Add to favorites
+        const res = await fetch(api('/favorites'), {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          setFavorites(prev => [...prev, data.favorite.product]);
+          toast({ title: 'Added to Wishlist', description: 'Product added to your wishlist.', variant: 'default' });
+        } else {
+          toast({ title: 'Error', description: data.message || 'Failed to add to wishlist', variant: 'destructive' });
+        }
+      } else {
+        // Optimistically update UI
+        setFavorites(prev => prev.filter((p: any) => p._id !== productId));
+        // Remove from favorites
+        const res = await fetch(api(`/favorites/${productId}`), {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast({ title: 'Removed from Wishlist', description: 'Product removed from your wishlist.', variant: 'default' });
+        } else {
+          // Revert if failed
+          toast({ title: 'Error', description: data.message || 'Failed to remove from wishlist', variant: 'destructive' });
+        }
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update wishlist', variant: 'destructive' });
+    }
+  };
+
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+
     return (
     <div className="min-h-screen bg-background">
       {/* Loading screen while restoring user session */}
@@ -625,6 +717,10 @@ const StudentDashboard = () => {
               </TabsTrigger>
               <TabsTrigger value="buying" className="flex items-center space-x-2">
                 <span>Purchase History</span>
+              </TabsTrigger>
+              <TabsTrigger value="wishlist" className="flex items-center space-x-2">
+                <Heart className="w-4 h-4" />
+                <span>My Wishlist</span>
               </TabsTrigger>
             </TabsList>
             <TabsContent value="selling" className="space-y-4 sm:space-y-6">
@@ -834,86 +930,134 @@ const StudentDashboard = () => {
             )}
           </TabsContent>
           <TabsContent value="marketplace" className="space-y-6">
-            <div className="flex items-center gap-4 flex-wrap">
-              <h2 className="text-2xl font-bold">Marketplace</h2>
-              <Button variant="outline" size="sm" onClick={() => {
-                // Re-fetch marketplace items
-                const fetchMarketplaceItems = async () => {
-                  try {
-                    const res = await fetch(api('/products/'));
-                    const data = await res.json();
-                    if (data.success) {
-                      setMarketplaceItems(data.products.filter((p: any) => p.status === 'active' && p.seller && p.seller._id !== user?.id));
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap gap-2 items-center justify-center bg-white/80 rounded-lg p-4 shadow-sm mb-4">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  className="border rounded px-3 py-2 text-sm w-48"
+                  value={marketplaceSearch}
+                  onChange={e => setMarketplaceSearch(e.target.value)}
+                />
+                <select
+                  className="border rounded px-3 py-2 text-sm w-36"
+                  value={marketplaceCategory}
+                  onChange={e => setMarketplaceCategory(e.target.value)}
+                >
+                  <option value="">All Categories</option>
+                  {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+                <input
+                  type="number"
+                  placeholder="Min Price"
+                  className="border rounded px-3 py-2 text-sm w-28"
+                  value={marketplaceMinPrice}
+                  onChange={e => setMarketplaceMinPrice(e.target.value)}
+                  min={0}
+                />
+                <input
+                  type="number"
+                  placeholder="Max Price"
+                  className="border rounded px-3 py-2 text-sm w-28"
+                  value={marketplaceMaxPrice}
+                  onChange={e => setMarketplaceMaxPrice(e.target.value)}
+                  min={0}
+                />
+                <input
+                  type="text"
+                  placeholder="Location"
+                  className="border rounded px-3 py-2 text-sm w-36"
+                  value={marketplaceLocation}
+                  onChange={e => setMarketplaceLocation(e.target.value)}
+                />
+                <Button variant="outline" size="sm" onClick={() => {
+                  setMarketplaceSearch(''); setMarketplaceCategory(''); setMarketplaceMinPrice(''); setMarketplaceMaxPrice(''); setMarketplaceLocation('');
+                }}>Clear</Button>
+              </div>
+              <div className="flex items-center gap-4 flex-wrap">
+                <h2 className="text-2xl font-bold">Marketplace</h2>
+                <Button variant="outline" size="sm" onClick={() => {
+                  // Re-fetch marketplace items
+                  const fetchMarketplaceItems = async () => {
+                    try {
+                      const res = await fetch(api('/products/'));
+                      const data = await res.json();
+                      if (data.success) {
+                        setMarketplaceItems(data.products.filter((p: any) => p.status === 'active' && p.seller && p.seller._id !== user?.id));
+                      }
+                    } catch {}
+                  };
+                  fetchMarketplaceItems();
+                }}>Refresh</Button>
+                {/* Distance filter dropdown, only if user has location */}
+                {user?.location && (
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="distance-filter" className="text-sm">Within</label>
+                    <select
+                      id="distance-filter"
+                      className="border rounded px-2 py-1 text-sm"
+                      value={marketplaceDistance}
+                      onChange={e => setMarketplaceDistance(Number(e.target.value))}
+                    >
+                      <option value={0}>All</option>
+                      {distanceOptions.filter(d => d !== 0).map(d => (
+                        <option key={d} value={d}>{d} km</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {marketplaceItems.length === 0 && (
+                  <div className="text-muted-foreground">
+                    No products found.
+                    {(!user?.location || marketplaceItems.every((item: any) => !item.location)) && (
+                      <div className="text-xs text-warning mt-2">Some products or your profile may be missing location data. Set your location in your profile for better results.</div>
+                    )}
+                  </div>
+                )}
+                {marketplaceItems
+                  .filter((item: any) => item.seller && item.seller._id !== user?.id)
+                  .filter((item: any) => {
+                    // Show all products if distance is 'All'
+                    if (!user?.location || !item.location || !item.location.lat || !item.location.lng) {
+                      return marketplaceDistance === 0;
                     }
-                  } catch {}
-                };
-                fetchMarketplaceItems();
-              }}>Refresh</Button>
-              {/* Distance filter dropdown, only if user has location */}
-              {user?.location && (
-                <div className="flex items-center gap-2">
-                  <label htmlFor="distance-filter" className="text-sm">Within</label>
-                  <select
-                    id="distance-filter"
-                    className="border rounded px-2 py-1 text-sm"
-                    value={marketplaceDistance}
-                    onChange={e => setMarketplaceDistance(Number(e.target.value))}
-                  >
-                    <option value={0}>All</option>
-                    {distanceOptions.filter(d => d !== 0).map(d => (
-                      <option key={d} value={d}>{d} km</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {marketplaceItems.length === 0 && (
-                <div className="text-muted-foreground">
-                  No products found.
-                  {(!user?.location || marketplaceItems.every((item: any) => !item.location)) && (
-                    <div className="text-xs text-warning mt-2">Some products or your profile may be missing location data. Set your location in your profile for better results.</div>
-                  )}
-                </div>
-              )}
-              {marketplaceItems
-                .filter((item: any) => item.seller && item.seller._id !== user?.id)
-                .filter((item: any) => {
-                  // Show all products if distance is 'All'
-                  if (!user?.location || !item.location || !item.location.lat || !item.location.lng) {
-                    return marketplaceDistance === 0;
-                  }
-                  if (!marketplaceDistance || marketplaceDistance === 0) return true;
-                  const dist = getDistanceFromLatLonInKm(
-                    user.location.lat,
-                    user.location.lng,
-                    item.location.lat,
-                    item.location.lng
-                  );
-                  return dist <= marketplaceDistance;
-                })
-                .map((item: any) => (
-                  <ProductCard
-                    key={item._id}
-                    id={item._id}
-                    title={item.title}
-                    price={item.price}
-                    originalPrice={item.originalPrice}
-                    image={item.images && item.images[0]}
-                    location={item.location ? `${getDistanceFromLatLonInKm(user?.location?.lat || 0, user?.location?.lng || 0, item.location.lat, item.location.lng).toFixed(2)} km away` : (item.collegeName || '')}
-                    seller={item.seller?.name || 'Unknown'}
-                    sellerId={item.seller?._id || ''}
-                    rating={item.rating || 0}
-                    category={item.category}
-                    isLiked={false}
-                    showChatButton={true}
-                    footer={
-                      <Button variant="hero" size="sm" className="mt-2 w-full" onClick={() => handleOpenBuyModal(item)}>
-                        Send Buy Request
-                      </Button>
-                    }
-                  />
-                ))}
+                    if (!marketplaceDistance || marketplaceDistance === 0) return true;
+                    const dist = getDistanceFromLatLonInKm(
+                      user.location.lat,
+                      user.location.lng,
+                      item.location.lat,
+                      item.location.lng
+                    );
+                    return dist <= marketplaceDistance;
+                  })
+                  .map((item: any, idx: number) => (
+                    <div key={item._id || idx} onClick={() => setSelectedProductId(item._id)} style={{ cursor: 'pointer' }}>
+                      <ProductCard
+                        id={item._id}
+                        title={item.title}
+                        price={item.price}
+                        originalPrice={item.originalPrice}
+                        image={item.images && item.images[0]}
+                        location={item.location ? `${getDistanceFromLatLonInKm(user?.location?.lat || 0, user?.location?.lng || 0, item.location.lat, item.location.lng).toFixed(2)} km away` : (item.collegeName || '')}
+                        seller={item.seller?.name || 'Unknown'}
+                        sellerId={item.seller?._id || ''}
+                        rating={item.rating || 0}
+                        reviewCount={item.reviewCount || 0}
+                        category={item.category}
+                        isLiked={!!favorites.find((f: any) => f._id === item._id)}
+                        onLikeToggle={() => toggleFavorite(item._id, !!favorites.find((f: any) => f._id === item._id))}
+                        showChatButton={true}
+                        footer={
+                          <Button variant="hero" size="sm" className="mt-2 w-full" onClick={e => { e.stopPropagation(); handleOpenBuyModal(item); }}>
+                            Send Buy Request
+                          </Button>
+                        }
+                      />
+                    </div>
+                  ))}
+              </div>
             </div>
           </TabsContent>
           <TabsContent value="buyRequests" className="space-y-6">
@@ -987,6 +1131,37 @@ const StudentDashboard = () => {
               {/* TODO: Implement real purchase history */}
               <div className="text-muted-foreground">Coming soon...</div>
             </div>
+          </TabsContent>
+          <TabsContent value="wishlist" className="space-y-6">
+            <h2 className="text-2xl font-bold">My Wishlist</h2>
+            {wishlistLoading ? (
+              <div>Loading wishlist...</div>
+            ) : favorites.length === 0 ? (
+              <div className="text-muted-foreground">No products in your wishlist yet.</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {favorites.map((item: any, idx: number) => (
+                  <div key={item._id || idx} onClick={() => setSelectedProductId(item._id)} style={{ cursor: 'pointer' }}>
+                    <ProductCard
+                      id={item._id}
+                      title={item.title}
+                      price={item.price}
+                      originalPrice={item.originalPrice}
+                      image={item.images && item.images[0]}
+                      location={item.location || item.collegeName || ''}
+                      seller={item.seller?.name || 'Unknown'}
+                      sellerId={item.seller?._id || ''}
+                      rating={item.rating || 0}
+                      reviewCount={item.reviewCount || 0}
+                      category={item.category}
+                      isLiked={true}
+                      onLikeToggle={() => toggleFavorite(item._id, true)}
+                      showChatButton={true}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
@@ -1104,6 +1279,26 @@ const StudentDashboard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Product Detail Modal */}
+      {selectedProductId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="relative w-full h-full flex items-center justify-center">
+            <div className="bg-white w-full h-full sm:w-full sm:max-w-2xl sm:h-auto sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden min-h-[60vh]">
+              <button
+                className="fixed sm:absolute top-4 right-4 z-50 bg-white/90 rounded-full p-2 shadow-lg hover:bg-white transition text-gray-700 border border-gray-200"
+                style={{ fontSize: 28, lineHeight: 1 }}
+                onClick={() => setSelectedProductId(null)}
+                aria-label="Close"
+              >
+                <X className="w-7 h-7" />
+              </button>
+              <div className="flex-1 overflow-y-auto p-2 sm:p-6">
+                <ProductDetail productId={selectedProductId} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
         </>
       )}
     </div>

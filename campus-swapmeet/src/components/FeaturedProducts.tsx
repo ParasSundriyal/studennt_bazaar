@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from './ui/button';
 import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Select } from './ui/select';
 
 // Helper to get API URL
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -24,32 +25,34 @@ const FeaturedProducts = ({ selectedCategory }: FeaturedProductsProps) => {
   const [buyLoading, setBuyLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Search/filter state
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [location, setLocation] = useState('');
+
+  // Fetch products with filters
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        const res = await fetch(api('/products/all'));
+        const params = new URLSearchParams();
+        if (search) params.append('keyword', search);
+        if (category) params.append('category', category);
+        if (minPrice) params.append('minPrice', minPrice);
+        if (maxPrice) params.append('maxPrice', maxPrice);
+        if (location) params.append('location', location);
+        const res = await fetch(api(`/products?${params.toString()}`));
         const data = await res.json();
         if (data.success) {
-          let filteredProducts = data.products;
-          
-          // Filter by category if selected
-          if (selectedCategory && selectedCategory !== 'More') {
-            filteredProducts = data.products.filter((product: any) => 
-              product.category === selectedCategory
-            );
-          }
-          
-          // Show the latest products (sorted by createdAt desc)
-          setProducts(filteredProducts.sort((a: any, b: any) => 
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          ).slice(0, 8));
+          setProducts(data.products.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
         }
       } catch {}
       setLoading(false);
     };
     fetchProducts();
-  }, [selectedCategory]);
+  }, [search, category, minPrice, maxPrice, location]);
 
   const handleBuyClick = (product: any) => {
     // For non-logged-in users, show the modal directly
@@ -133,6 +136,56 @@ const FeaturedProducts = ({ selectedCategory }: FeaturedProductsProps) => {
               : 'Discover amazing deals from students across different colleges'
             }
           </p>
+        </div>
+
+        {/* Filter Bar */}
+        <div className="flex flex-wrap gap-2 mb-8 items-center justify-center bg-white/80 rounded-lg p-4 shadow-sm">
+          <input
+            type="text"
+            placeholder="Search products..."
+            className="border rounded px-3 py-2 text-sm w-48"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          <select
+            className="border rounded px-3 py-2 text-sm w-36"
+            value={category}
+            onChange={e => setCategory(e.target.value)}
+          >
+            <option value="">All Categories</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Books">Books</option>
+            <option value="Home & Living">Home & Living</option>
+            <option value="Fashion">Fashion</option>
+            <option value="Sports">Sports</option>
+            <option value="Other">Other</option>
+          </select>
+          <input
+            type="number"
+            placeholder="Min Price"
+            className="border rounded px-3 py-2 text-sm w-28"
+            value={minPrice}
+            onChange={e => setMinPrice(e.target.value)}
+            min={0}
+          />
+          <input
+            type="number"
+            placeholder="Max Price"
+            className="border rounded px-3 py-2 text-sm w-28"
+            value={maxPrice}
+            onChange={e => setMaxPrice(e.target.value)}
+            min={0}
+          />
+          <input
+            type="text"
+            placeholder="Location"
+            className="border rounded px-3 py-2 text-sm w-36"
+            value={location}
+            onChange={e => setLocation(e.target.value)}
+          />
+          <Button variant="outline" size="sm" onClick={() => {
+            setSearch(''); setCategory(''); setMinPrice(''); setMaxPrice(''); setLocation('');
+          }}>Clear</Button>
         </div>
 
         {loading ? (

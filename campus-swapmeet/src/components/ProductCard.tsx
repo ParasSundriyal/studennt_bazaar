@@ -13,10 +13,12 @@ interface ProductCardProps {
   seller: string;
   sellerId: string;
   rating: number;
+  reviewCount?: number;
   category: string;
   isLiked?: boolean;
   footer?: React.ReactNode;
   showChatButton?: boolean;
+  onLikeToggle?: () => void;
 }
 
 const ProductCard = ({ 
@@ -29,10 +31,12 @@ const ProductCard = ({
   seller, 
   sellerId,
   rating, 
+  reviewCount = 0,
   category,
   isLiked = false,
   footer,
-  showChatButton = false
+  showChatButton = false,
+  onLikeToggle
 }: ProductCardProps) => {
   return (
     <div className="group bg-card rounded-xl overflow-hidden shadow-soft hover:shadow-medium transition-all duration-300 hover:scale-105 transform border border-border">
@@ -49,6 +53,8 @@ const ProductCard = ({
           className={`absolute top-3 right-3 bg-background/80 backdrop-blur-sm hover:bg-background ${
             isLiked ? 'text-red-500' : 'text-muted-foreground'
           }`}
+          onClick={onLikeToggle}
+          aria-label={isLiked ? 'Remove from wishlist' : 'Add to wishlist'}
         >
           <Heart className="w-4 h-4" fill={isLiked ? 'currentColor' : 'none'} />
         </Button>
@@ -81,7 +87,7 @@ const ProductCard = ({
             </div>
             <div className="flex items-center space-x-1">
               <Star className="w-3 h-3 text-yellow-500 fill-current" />
-              <span className="text-xs text-muted-foreground">{rating} • {seller}</span>
+              <span className="text-xs text-muted-foreground">{rating} ({reviewCount}) • {seller}</span>
             </div>
           </div>
         </div>

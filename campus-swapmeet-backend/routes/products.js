@@ -6,6 +6,8 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const BuyRequest = require('../models/BuyRequest');
+const Review = require('../models/Review');
+const User = require('../models/User');
 
 // Cloudinary config
 cloudinary.config({
@@ -44,10 +46,34 @@ router.post('/', auth, requireSeller, upload.array('images', 5), async (req, res
   }
 });
 
-// Get all products
+// Get all products (with search and filters)
 router.get('/', async (req, res) => {
-  const products = await Product.find({ status: 'active' }).populate('seller', 'name collegeId');
-  res.json({ success: true, products });
+  try {
+    const { keyword, category, minPrice, maxPrice, location } = req.query;
+    const filter = { status: 'active' };
+    if (keyword) {
+      filter.$or = [
+        { title: { $regex: keyword, $options: 'i' } },
+        { description: { $regex: keyword, $options: 'i' } }
+      ];
+    }
+    if (category) {
+      filter.category = category;
+    }
+    if (minPrice) {
+      filter.price = { ...filter.price, $gte: Number(minPrice) };
+    }
+    if (maxPrice) {
+      filter.price = { ...filter.price, $lte: Number(maxPrice) };
+    }
+    if (location) {
+      filter.location = { $regex: location, $options: 'i' };
+    }
+    const products = await Product.find(filter).populate('seller', 'name collegeId');
+    res.json({ success: true, products });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
 });
 
 // Get all active products (public)
@@ -206,6 +232,49 @@ router.post('/:id/buy-request', auth, async (req, res) => {
       status: 'pending'
     });
     res.status(201).json({ success: true, request });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
+
+// Add a review to a product
+router.post('/reviews', auth, async (req, res) => {
+  try {
+    const { productId, rating, comment } = req.body;
+    if (!productId || !rating || !comment) {
+      return res.status(400).json({ success: false, message: 'All fields are required.' });
+    }
+    // Prevent duplicate review
+    const existing = await Review.findOne({ product: productId, user: req.user._id });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'You have already reviewed this product.' });
+    }
+    const review = await Review.create({
+      product: productId,
+      user: req.user._id,
+      rating,
+      comment
+    });
+    // Update product average rating and review count
+    const reviews = await Review.find({ product: productId });
+    const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+    await Product.findByIdAndUpdate(productId, {
+      rating: avgRating,
+      reviewCount: reviews.length
+    });
+    res.status(201).json({ success: true, review });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
+
+// Get all reviews for a product
+router.get('/reviews/:productId', async (req, res) => {
+  try {
+    const reviews = await Review.find({ product: req.params.productId })
+      .populate('user', 'name avatar')
+      .sort({ createdAt: -1 });
+    res.json({ success: true, reviews });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
