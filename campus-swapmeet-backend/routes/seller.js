@@ -39,6 +39,19 @@ router.get('/applications', auth, async (req, res) => {
   }
 });
 
+// Get pending sellers (admin only) - alias for /applications
+router.get('/pending', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only admin can view pending sellers' });
+  }
+  try {
+    const pending = await User.find({ sellerStatus: 'pending' }).select('-password');
+    res.json({ success: true, pending });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
+
 // Approve seller application (admin only)
 router.post('/applications/:userId/approve', auth, async (req, res) => {
   if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
@@ -65,6 +78,50 @@ router.post('/applications/:userId/approve', auth, async (req, res) => {
 router.post('/applications/:userId/reject', auth, async (req, res) => {
   if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
     return res.status(403).json({ success: false, message: 'Only admin can reject applications' });
+  }
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { sellerStatus: 'rejected' },
+      { new: true }
+    ).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
+
+// Approve seller (admin only) - alias for /applications/:userId/approve
+router.post('/approve/:userId', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only admin can approve sellers' });
+  }
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { sellerStatus: 'approved' },
+      { new: true }
+    ).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
+
+// Reject seller (admin only) - alias for /applications/:userId/reject
+router.post('/reject/:userId', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only admin can reject sellers' });
   }
   try {
     const user = await User.findByIdAndUpdate(

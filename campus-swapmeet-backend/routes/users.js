@@ -20,18 +20,23 @@ router.get('/', auth, requireAdmin, async (req, res) => {
 
 // Get admin/superadmin dashboard stats
 router.get('/stats', auth, async (req, res) => {
-  if (req.user.role !== 'superadmin') {
-    return res.status(403).json({ success: false, message: 'Only superadmin can access this endpoint' });
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only admin can access this endpoint' });
   }
   const User = require('../models/User');
   const Product = require('../models/Product');
   const Report = require('../models/Report');
   try {
     const totalUsers = await User.countDocuments();
-    const activeListings = await Product.countDocuments({ status: 'active' });
-    const pendingReviews = await Product.countDocuments({ status: 'pending' });
-    const reports = await Report.countDocuments({ status: 'pending' });
-    res.json({ success: true, stats: { totalUsers, activeListings, pendingReviews, reports } });
+    const totalActiveListings = await Product.countDocuments({ status: 'active' });
+    const totalPendingReviews = await Product.countDocuments({ status: 'pending' });
+    const totalReports = await Report.countDocuments({ status: 'pending' });
+    res.json({ success: true, stats: { 
+      totalUsers, 
+      totalActiveListings, 
+      totalPendingReviews, 
+      totalReports 
+    } });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }

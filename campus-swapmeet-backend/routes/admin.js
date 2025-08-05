@@ -47,4 +47,66 @@ router.get('/reports', auth, async (req, res) => {
   }
 });
 
+// Get recent activity (admin only)
+router.get('/recent-activity', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only admin can access this endpoint' });
+  }
+  try {
+    // Get recent user registrations
+    const recentUsers = await User.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('name collegeId createdAt');
+    
+    // Get recent products
+    const recentProducts = await Product.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('seller', 'name collegeId')
+      .select('title price createdAt');
+    
+    // Get recent reports
+    const recentReports = await Report.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('reporter', 'name collegeId')
+      .select('reason createdAt');
+    
+    // Combine and format activities
+    const activities = [];
+    
+    recentUsers.forEach(user => {
+      activities.push({
+        type: 'user',
+        message: `New user registered: ${user.name} (${user.collegeId})`,
+        date: user.createdAt
+      });
+    });
+    
+    recentProducts.forEach(product => {
+      activities.push({
+        type: 'product',
+        message: `New product listed: ${product.title} by ${product.seller?.name || 'Unknown'}`,
+        date: product.createdAt
+      });
+    });
+    
+    recentReports.forEach(report => {
+      activities.push({
+        type: 'report',
+        message: `New report filed by ${report.reporter?.name || 'Unknown'}: ${report.reason}`,
+        date: report.createdAt
+      });
+    });
+    
+    // Sort by date (most recent first)
+    activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    res.json({ success: true, activities: activities.slice(0, 10) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
+
 module.exports = router; 
